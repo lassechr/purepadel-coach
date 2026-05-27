@@ -375,6 +375,8 @@ function render() {
     else if(STATE.tab==='admin') { STATE.tab='drills'; html += rDrills(); }
     else if(STATE.tab==='drills') html += rDrills();
     else if(STATE.tab==='players') html += rPlayers();
+    else if(STATE.tab==='matches') html += rMatches();
+    else if(STATE.tab==='konto') html += rKonto();
     else html += rMatches();
   }
   html += '</div>';
@@ -624,12 +626,12 @@ function rMatches() {
       html+='<div class="match-teams">';
       html+='<div style="display:flex;flex-direction:column;gap:8px;">';
       var tm1=[p1,p2];
-      for(var ti=0;ti<tm1.length;ti++){var tp=tm1[ti];var ta=acolor(tp.id);html+='<div class="mp"><div class="mp-av" style="color:'+ta.color+';background:'+ta.bg+';border-color:'+ta.border+';">'+initials(tp.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+tp.name.split(' ')[0]+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp.level))+'</div></div></div>';}
+      for(var ti=0;ti<tm1.length;ti++){var tp=tm1[ti];var ta=acolor(tp.id);html+='<div class="mp"><div class="mp-av" style="color:'+ta.color+';background:'+ta.bg+';border-color:'+ta.border+';">'+initials(tp.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+tp.name+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp.level))+'</div></div></div>';}
       html+='</div>';
       html+='<div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:#ccc;text-align:center;">VS</div>';
       html+='<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">';
       var tm2=[p3,p4];
-      for(var ti2=0;ti2<tm2.length;ti2++){var tp2=tm2[ti2];var ta2=acolor(tp2.id);html+='<div class="mp r"><div class="mp-av" style="color:'+ta2.color+';background:'+ta2.bg+';border-color:'+ta2.border+';">'+initials(tp2.name)+'</div><div style="text-align:right;"><div style="font-size:13px;font-weight:600;color:#111;">'+tp2.name.split(' ')[0]+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp2.level))+'</div></div></div>';}
+      for(var ti2=0;ti2<tm2.length;ti2++){var tp2=tm2[ti2];var ta2=acolor(tp2.id);html+='<div class="mp r"><div class="mp-av" style="color:'+ta2.color+';background:'+ta2.bg+';border-color:'+ta2.border+';">'+initials(tp2.name)+'</div><div style="text-align:right;"><div style="font-size:13px;font-weight:600;color:#111;">'+tp2.name+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp2.level))+'</div></div></div>';}
       html+='</div></div>';
       html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Hold 1: '+pct+'% · Hold 2: '+(100-pct)+'%</div><div style="height:4px;background:#eee;border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+sc+';border-radius:2px;"></div></div></div>';
       html+='</div>';
@@ -638,8 +640,27 @@ function rMatches() {
   }
 
   // Attendees
+  // Side count
+  var attP=STATE.players.filter(function(p){return STATE.att.indexOf(p.id)>-1;});
+  var cV=attP.filter(function(p){return p.side==='venstre';}).length;
+  var cH=attP.filter(function(p){return p.side==='hojre'||p.side==='højre';}).length;
+  var cB=attP.filter(function(p){return p.side==='begge';}).length;
+
+  // Bane dropdown
+  if(!STATE.baneGroups)STATE.baneGroups=0;
+  var maxBG=Math.floor(STATE.att.length/4);
+  if(maxBG>=2){
+    html+='<div class="card" style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Bane-gruppering</div>';
+    html+='<div style="font-size:12px;color:#666;margin-bottom:10px;">Vælg om de første baner spiller separat fra resten</div>';
+    html+='<select onchange="setBaneGroups(this.value)" style="width:100%;padding:9px 13px;background:#fff;border:1.5px solid #ddd;border-radius:8px;color:#111;font-family:DM Sans,sans-serif;font-size:14px;outline:none;">';
+    html+='<option value="0" '+(STATE.baneGroups===0?'selected':'')+'>Ingen opdeling</option>';
+    for(var bg=2;bg<=maxBG;bg++){html+='<option value="'+bg+'" '+(STATE.baneGroups===bg?'selected':'')+'>Første '+bg+' baner ('+bg*4+' spillere) separat</option>';}
+    html+='</select></div>';
+  }
+
   html+='<div class="card">';
   html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Tilmeldte i dag: '+STATE.att.length+' / '+STATE.players.length+'</div>';
+  if(STATE.att.length>0){html+='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span style="font-size:12px;padding:4px 10px;border-radius:6px;background:#e8f0fb;border:1px solid #b3cef0;color:#1d6fb5;font-weight:600;">Venstre: '+cV+'</span><span style="font-size:12px;padding:4px 10px;border-radius:6px;background:#fef5ec;border:1px solid #f5cba7;color:#d35400;font-weight:600;">Højre: '+cH+'</span><span style="font-size:12px;padding:4px 10px;border-radius:6px;background:#eafaf1;border:1px solid #a9dfbf;color:#1e8449;font-weight:600;">Begge: '+cB+'</span></div>';}
   for(var pi=0;pi<STATE.players.length;pi++){
     var p=STATE.players[pi];var ac=acolor(p.id);var on=STATE.att.indexOf(p.id)>-1;
     html+='<div class="att-row'+(on?' on':'')+'" onclick="togAtt(\''+p.id+'\')">';
