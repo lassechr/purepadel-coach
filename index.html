@@ -935,7 +935,7 @@ function rHistorik(){
   return html;
 }
 
-function wrongSide(player, side){
+window.wrongSide=function wrongSide(player, side){
   // side: 'left' = venstre bane (t1), 'right' = højre bane (t2)
   // Returns true if player is on their non-preferred side
   if(!player)return false;
