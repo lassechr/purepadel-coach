@@ -1053,11 +1053,18 @@ window.promptSaveSession=function(){
     matches:matchesWithNames,
     rounds:STATE.rounds||1
   };
-  sbPost('sessions',data).then(function(){
-    loadSessions().then(function(){
-      render();
-      alert('Træning gemt under Historik!');
-    });
+  sbPost('sessions',data).then(function(result){
+    console.log('Session post result:', JSON.stringify(result));
+    if(result && !result.error && !result.code){
+      loadSessions().then(function(){
+        render();
+        alert('Træning gemt under Historik!');
+      });
+    } else {
+      alert('Fejl ved gemning: '+(result.message||result.error||result.code||JSON.stringify(result)));
+    }
+  }).catch(function(err){
+    alert('Netværksfejl: '+err.message);
   });
 };
 function getWeekNumber(d){d=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));var y=new Date(Date.UTC(d.getUTCFullYear(),0,1));return Math.ceil((((d-y)/86400000)+1)/7);}
