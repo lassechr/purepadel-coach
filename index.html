@@ -762,11 +762,11 @@ function rHistorik(){
     html+='<div style="font-size:15px;font-weight:600;color:#111;margin-bottom:4px;">'+esc(s.name)+'</div>';
     html+='<div style="font-size:12px;color:#888;">'+formatDate(s.date)+' · '+playerIds.length+' spillere · '+matches.length+' kampe'+(rounds>1?' · '+rounds+' runder':'')+'</div>';
     html+='</div>';
-    html+='<button onclick="deleteSession(''+s.id+'')" style="background:#fff0f0;color:#c0392b;border:1.5px solid #f5b7b1;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;">Slet</button>';
+    html+='<button onclick="deleteSession(this.dataset.id)" data-id="'+s.id+'" style="background:#fff0f0;color:#c0392b;border:1.5px solid #f5b7b1;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;">Slet</button>';
     html+='</div>';
 
     // Show matches collapsed - click to expand
-    html+='<div onclick="toggleSession(''+s.id+'')" style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<div onclick="toggleSession(this.dataset.id)" data-id="'+s.id+'" style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">';
     html+='<span style="font-size:12px;color:#888;font-weight:600;letter-spacing:.5px;text-transform:uppercase;">Vis kampe</span>';
     html+='<span style="font-size:12px;color:#aaa;">'+(STATE.openSession===s.id?'▲':'▼')+'</span>';
     html+='</div>';
