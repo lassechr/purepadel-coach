@@ -599,6 +599,17 @@ function rMatches() {
   }
   html+='</div>';
 
+  // Rounds selector
+  if(!STATE.rounds)STATE.rounds=1;
+  html+='<div class="card" style="margin-bottom:16px;">';
+  html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Antal runder</div>';
+  html+='<div style="display:flex;gap:8px;">';
+  for(var ri=1;ri<=3;ri++){
+    var ract=STATE.rounds===ri;
+    html+='<div onclick="setRounds('+ri+')" style="flex:1;padding:10px;text-align:center;border:1.5px solid '+(ract?'#111':'#e5e5e5')+';border-radius:8px;cursor:pointer;background:'+(ract?'#111':'#fff')+';color:'+(ract?'#fff':'#555')+';font-weight:600;font-size:14px;">'+ri+(ri===1?' runde':' runder')+'</div>';
+  }
+  html+='</div></div>';
+
   // Buttons
   html+='<div style="display:flex;gap:8px;margin-bottom:20px;">';
   html+='<button class="btn btn-dark'+(STATE.att.length<4?' btn-disabled':'')+'" onclick="genMatches()" '+(STATE.att.length<4?'disabled':'')+'>'+(STATE.matches.length>0?'Generer nye kampe':'Generer kampe')+'</button>';
@@ -622,7 +633,7 @@ function rMatches() {
       var sc=diff<0.5?'#1e8449':diff<1?'#b7770d':'#c0392b';
       var sl=diff<0.5?'Meget balanceret':diff<1?'Jævne hold':'Niveauforskel';
       html+='<div class="card">';
-      html+='<div style="font-family:Bebas Neue,sans-serif;font-size:12px;letter-spacing:2px;color:#aaa;margin-bottom:12px;">Bane '+(mi2+1)+' <span style="color:'+sc+';">– '+sl+'</span></div>';
+      var rlbl=(STATE.rounds&&STATE.rounds>1)?' · Runde '+m.round:'';html+='<div style="font-family:Bebas Neue,sans-serif;font-size:12px;letter-spacing:2px;color:#aaa;margin-bottom:12px;">Bane '+(mi2+1)+rlbl+' <span style="color:'+sc+';">– '+sl+'</span></div>';
       html+='<div class="match-teams">';
       html+='<div style="display:flex;flex-direction:column;gap:8px;">';
       var tm1=[p1,p2];
@@ -725,57 +736,76 @@ function rAddUserModal(){
 }
 
 // ── ACTIONS ──────────────────────────────────────────────────
-window.doLogin = function() {
-  var email = (document.getElementById('loginEmail')||{}).value||'';
-  var pw = (document.getElementById('loginPw')||{}).value||'';
+function rKonto(){
+  var p=STATE.profile;
+  var days=daysLeft(p.subscription_expires);
+  var sc=days<0?'#c0392b':days<30?'#b7770d':'#3ecf8e';
+  var sl=days<0?'Udløbet':days<30?'Udløber snart':'Aktiv';
+  var tl=p.subscription_type==='club'?'Forening':'Træner';
+  var tc=p.subscription_type==='club'?'#1d6fb5':'#7d3c98';
+  var tb=p.subscription_type==='club'?'#e8f0fb':'#f5eef8';
+  var tbo=p.subscription_type==='club'?'#b3cef0':'#d7bde2';
+  var ac=acolor(p.id||'x');
+  var html='<div class="sec-head"><div class="sec-title">Min konto</div></div>';
+  html+='<div class="card" style="margin-bottom:12px;">';
+  html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;">Brugeroplysninger</div>';
+  html+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;"><div class="avatar" style="width:52px;height:52px;font-size:18px;color:'+ac.color+';background:'+ac.bg+';border-color:'+ac.border+';">'+initials(p.name||p.email)+'</div>';
+  html+='<div><div style="font-size:18px;font-weight:600;color:#111;">'+(p.name&&p.name!=='null'?esc(p.name):'–')+'</div><div style="font-size:13px;color:#888;margin-top:2px;">'+esc(p.email||'')+'</div></div></div>';
+  html+='<div style="height:1px;background:#eee;margin-bottom:14px;"></div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:13px;color:#888;">Type</span><span class="user-role" style="color:'+tc+';background:'+tb+';border-color:'+tbo+';">'+tl+'</span></div>';
+  if(p.club_name&&p.club_name!=='null'){html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:13px;color:#888;">Forening</span><span style="font-size:13px;font-weight:600;color:#111;">'+esc(p.club_name)+'</span></div>';}
+  html+='</div>';
+  html+='<div class="card" style="margin-bottom:12px;">';
+  html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;">Abonnement</div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:13px;color:#888;">Status</span><span style="font-size:13px;font-weight:600;color:'+sc+';">'+sl+'</span></div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><span style="font-size:13px;color:#888;">Aktivt til</span><span style="font-size:13px;font-weight:600;color:#111;">'+(p.subscription_expires?formatDate(p.subscription_expires):'–')+'</span></div>';
+  if(days>=0&&days<30)html+='<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px 14px;font-size:13px;color:#b7770d;margin-bottom:14px;">⚠ Udløber om '+days+' dage</div>';
+  if(days<0)html+='<div style="background:#fdecea;border:1px solid #f5b7b1;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b;margin-bottom:14px;">Abonnement udløbet</div>';
+  html+='<a href="mailto:dux9000@gmail.com?subject=Fornyelse af PurePadel Coach" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:#111;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Kontakt PurePadel</a>';
+  html+='</div>';
+  html+='<div class="card"><div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;">Konto</div>';
+  html+='<button onclick="doLogout()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:#fff0f0;color:#c0392b;border:1.5px solid #f5b7b1;border-radius:8px;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;">Log ud</button>';
+  html+='</div>';
+  return html;
+}
+
+window.doLogin=function(){
+  var email=(document.getElementById('loginEmail')||{}).value||'';
+  var pw=(document.getElementById('loginPw')||{}).value||'';
   if(!email||!pw){document.getElementById('loginErr').textContent='Udfyld email og password';return;}
   document.getElementById('loginErr').textContent='Logger ind...';
-  sbAuth(email, pw).then(function(data) {
-    if(data.access_token) {
-      saveSession(data);
-      loadProfile().then(function(){
-        loadAll();
-      });
-    } else {
-      var msg = data.error_description || data.message || data.error || 'Forkert email eller password';
-      document.getElementById('loginErr').textContent = msg;
-    }
+  sbAuth(email,pw).then(function(data){
+    if(data.access_token){saveSession(data);loadProfile().then(function(){loadAll();});}
+    else{var msg=data.error_description||data.message||data.error||'Forkert email eller password';document.getElementById('loginErr').textContent=msg;}
   });
 };
+window.doLogout=function(){logout();};
+window.setTab=function(t){STATE.tab=t;STATE.ov=null;render();};
+window.setFcat=function(f){STATE.fcat=f;render();};
+window.openModal=function(m){STATE.modal=m;render();};
+window.closeModal=function(){STATE.modal=null;STATE.editDrill=null;STATE.mvids=[];render();};
+window.openAdd=function(){STATE.editDrill=null;STATE.mvids=[];STATE.modal='drill';render();};
+window.toggleVid=function(id){STATE.ov=STATE.ov===id?null:id;render();};
+window.togAtt=function(id){var i=STATE.att.indexOf(id);if(i>-1)STATE.att.splice(i,1);else STATE.att.push(id);render();};
+window.toggleImp=function(){STATE.showImp=!STATE.showImp;STATE.irows=[];render();};
+window.setMode=function(m){STATE.matchMode=m;STATE.matches=[];render();};
+window.clrMatches=function(){STATE.matches=[];render();};
+window.rmVid=function(i){STATE.mvids.splice(i,1);render();};
+window.setBaneGroups=function(v){STATE.baneGroups=parseInt(v)||0;render();};
+window.setRounds=function(v){STATE.rounds=parseInt(v)||1;render();};
 
-window.doLogout = function() { logout(); };
-window.setTab = function(t) { STATE.tab=t; STATE.ov=null; render(); };
-window.setFcat = function(f) { STATE.fcat=f; render(); };
-window.openModal = function(m) { STATE.modal=m; render(); };
-window.closeModal = function() { STATE.modal=null; STATE.editDrill=null; STATE.mvids=[]; render(); };
-window.openAdd = function() { STATE.editDrill=null; STATE.mvids=[]; STATE.modal='drill'; render(); };
-window.toggleVid = function(id) { STATE.ov=STATE.ov===id?null:id; render(); };
-window.togAtt = function(id) { var i=STATE.att.indexOf(id);if(i>-1)STATE.att.splice(i,1);else STATE.att.push(id); render(); };
-window.toggleImp = function() { STATE.showImp=!STATE.showImp; STATE.irows=[]; render(); };
-window.setMode = function(m) { STATE.matchMode=m; STATE.matches=[]; render(); };
-window.clrMatches = function() { STATE.matches=[]; render(); };
-window.rmVid = function(i) { STATE.mvids.splice(i,1); render(); };
-
-window.editDrill = function(id) {
+window.editDrill=function(id){
   var all=allDrills();
-  for(var i=0;i<all.length;i++) if(all[i].id===id){STATE.editDrill=all[i];break;}
-  STATE.modal='drill'; render();
+  for(var i=0;i<all.length;i++)if(all[i].id===id){STATE.editDrill=all[i];break;}
+  STATE.modal='drill';render();
 };
 
-window.saveDrill = function() {
+window.saveDrill=function(){
   var t=(document.getElementById('mT')||{}).value||'';
   if(!t.trim()){alert('Angiv en titel');return;}
   var vurl=(document.getElementById('mVU')||{}).value||'';
   var vtitle=(document.getElementById('mVN')||{}).value||'';
-  var data={
-    club_id:clubId(),
-    title:t.trim(),
-    cat:document.getElementById('mC').value,
-    level:document.getElementById('mL').value,
-    players:parseInt(document.getElementById('mP').value)||2,
-    description:(document.getElementById('mD').value||'').trim(),
-    video_url:vurl.trim()
-  };
+  var data={club_id:clubId(),title:t.trim(),cat:document.getElementById('mC').value,level:document.getElementById('mL').value,players:parseInt(document.getElementById('mP').value)||2,description:(document.getElementById('mD').value||'').trim(),video_url:vurl.trim()};
   var promise;
   if(STATE.editDrill&&STATE.editDrill.id&&!String(STATE.editDrill.id).startsWith('sheet_')){
     promise=sbPatch('drills',data,'id=eq.'+STATE.editDrill.id);
@@ -785,19 +815,19 @@ window.saveDrill = function() {
   promise.then(function(){closeModal();loadDrills().then(render);});
 };
 
-window.delDrill = function(id) {
+window.delDrill=function(id){
   if(!confirm('Slet øvelse?'))return;
   sbDelete('drills','id=eq.'+id).then(function(){loadDrills().then(render);});
 };
 
-window.savePlayer = function() {
+window.savePlayer=function(){
   var n=(document.getElementById('pN')||{}).value||'';
   if(!n.trim()){alert('Angiv et navn');return;}
   sbPost('players',{club_id:clubId(),name:n.trim(),level:Math.min(5,Math.max(1,parseInt(document.getElementById('pL').value)||3)),side:document.getElementById('pS').value,notes:(document.getElementById('pO').value||'').trim()})
   .then(function(){closeModal();loadPlayers().then(render);});
 };
 
-window.delPlayer = function(id) {
+window.delPlayer=function(id){
   if(!confirm('Slet spiller?'))return;
   sbDelete('players','id=eq.'+id).then(function(){
     STATE.att=STATE.att.filter(function(a){return a!==id;});
@@ -805,29 +835,59 @@ window.delPlayer = function(id) {
   });
 };
 
-window.genMatches = function() {
+window.genMatches=function(){
   if(STATE.att.length<4)return;
+  var allP=STATE.players;
   var ps=[];
-  for(var i=0;i<STATE.att.length;i++){for(var j=0;j<STATE.players.length;j++)if(STATE.players[j].id===STATE.att[i]){ps.push(STATE.players[j]);break;}}
+  for(var i=0;i<STATE.att.length;i++){for(var j=0;j<allP.length;j++)if(allP[j].id===STATE.att[i]){ps.push(allP[j]);break;}}
+
   function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
-  var m=[];
-  if(STATE.matchMode==='balanced'){
-    ps.sort(function(a,b){return b.level-a.level;});
-    for(var i=0;i<ps.length-3;i+=4){var g=ps.slice(i,i+4);m.push({t1:[g[0].id,g[3].id],t2:[g[1].id,g[2].id]});}
-  } else if(STATE.matchMode==='split'){
-    ps.sort(function(a,b){return b.level-a.level;});
-    var half=Math.floor(ps.length/2);
-    var top=shuffle(ps.slice(0,half));var bot=shuffle(ps.slice(half));
-    for(var i=0;i<top.length-3;i+=4){var g=top.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
-    for(var i=0;i<bot.length-3;i+=4){var g=bot.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
-  } else {
-    ps=shuffle(ps);
-    for(var i=0;i<ps.length-3;i+=4){var g=ps.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
+  function sideVal(s){return s==='venstre'?0:s==='begge'?1:2;}
+  function sortBySide(ids){
+    var pp=ids.map(function(id){return allP.filter(function(p){return p.id===id;})[0];}).filter(Boolean);
+    pp.sort(function(a,b){return sideVal(a.side)-sideVal(b.side);});
+    return pp.map(function(p){return p.id;});
   }
-  STATE.matches=m; render();
+  function makePairs(grp,mode){
+    var m=[];
+    if(mode==='balanced'){
+      grp.sort(function(a,b){return b.level-a.level;});
+      for(var i=0;i<grp.length-3;i+=4){var g=grp.slice(i,i+4);m.push({t1:[g[0].id,g[3].id],t2:[g[1].id,g[2].id]});}
+    } else if(mode==='split'){
+      grp.sort(function(a,b){return b.level-a.level;});
+      var h=Math.floor(grp.length/2);
+      var top=shuffle(grp.slice(0,h));var bot=shuffle(grp.slice(h));
+      for(var i=0;i<top.length-3;i+=4){var g=top.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
+      for(var i=0;i<bot.length-3;i+=4){var g=bot.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
+    } else {
+      grp=shuffle(grp);
+      for(var i=0;i<grp.length-3;i+=4){var g=grp.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
+    }
+    // Sort each team: venstre first
+    for(var i=0;i<m.length;i++){m[i].t1=sortBySide(m[i].t1);m[i].t2=sortBySide(m[i].t2);}
+    return m;
+  }
+
+  var grpSize=STATE.baneGroups||0;
+  var rounds=STATE.rounds||1;
+  var allMatches=[];
+
+  for(var r=0;r<rounds;r++){
+    var roundMatches=[];
+    if(grpSize>=2&&ps.length>=grpSize*4){
+      roundMatches=makePairs(ps.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(ps.slice(grpSize*4),STATE.matchMode));
+    } else {
+      roundMatches=makePairs(ps.slice(),STATE.matchMode);
+    }
+    // Tag each match with round number
+    for(var i=0;i<roundMatches.length;i++){roundMatches[i].round=r+1;}
+    allMatches=allMatches.concat(roundMatches);
+  }
+
+  STATE.matches=allMatches;render();
 };
 
-window.parseImp = function() {
+window.parseImp=function(){
   var raw=(document.getElementById('ppPaste')||{}).value||'';
   if(!raw.trim()){STATE.irows=[];render();return;}
   var rows=raw.trim().split('\n');var parsed=[];
@@ -844,7 +904,7 @@ window.parseImp = function() {
   setTimeout(function(){var el=document.getElementById('ppPaste');if(el)el.value=raw;},0);
 };
 
-window.doImp = function() {
+window.doImp=function(){
   var ok=STATE.irows.filter(function(p){return!p.errs.length;});
   if(!ok.length)return;
   Promise.all(ok.map(function(p){return sbPost('players',{club_id:clubId(),name:p.name,level:p.level,side:p.side,notes:p.notes});}))
@@ -854,9 +914,9 @@ window.doImp = function() {
   });
 };
 
-window.clrImp = function() { STATE.irows=[]; render(); setTimeout(function(){var el=document.getElementById('ppPaste');if(el)el.value='';},0); };
+window.clrImp=function(){STATE.irows=[];render();setTimeout(function(){var el=document.getElementById('ppPaste');if(el)el.value='';},0);};
 
-window.createUser = function() {
+window.createUser=function(){
   var name=(document.getElementById('uN')||{}).value||'';
   var email=(document.getElementById('uE')||{}).value||'';
   var pw=(document.getElementById('uP')||{}).value||'';
@@ -865,73 +925,54 @@ window.createUser = function() {
   var type=(document.getElementById('uT')||{}).value||'trainer';
   var exp=(document.getElementById('uExp')||{}).value||'';
   if(!email||!pw){alert('Email og password er påkrævet');return;}
-  if(pw.length < 6){alert('Password skal være mindst 6 tegn');return;}
-
-  // Step 1: Sign up the user
+  if(pw.length<6){alert('Password skal være mindst 6 tegn');return;}
   sbFetch('POST','/auth/v1/signup',{email:email,password:pw},null)
   .then(function(data){
-    if(data.id || (data.user && data.user.id)) {
-      var uid = data.id || data.user.id;
-      // Step 2: Update their profile
-      return sbPatch('profiles',{
+    if(data.id||(data.user&&data.user.id)){
+      var uid=data.id||data.user.id;
+      // Use anon key directly to update profile (new user not logged in yet)
+      return sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{
         name:name,
         role:type==='club'?'club_admin':'trainer',
         club_id:cid||email.split('@')[0].replace(/[^a-z0-9]/gi,'-'),
         club_name:clubName||name,
         subscription_type:type,
         subscription_expires:exp||'2099-12-31'
-      },'id=eq.'+uid);
+      }, SB_KEY);
     } else {
       alert('Fejl: '+(data.message||data.error_description||data.error||JSON.stringify(data)));
       return Promise.reject('failed');
     }
   }).then(function(){
     closeModal();
-    alert('Bruger oprettet! Login: '+email+' / '+pw);
+    alert('Bruger oprettet!\nLogin: '+email+'\nPassword: '+pw);
     loadAllProfiles().then(render);
-  }).catch(function(e){
-    if(e!=='failed') alert('Noget gik galt – prøv igen');
-  });
+  }).catch(function(e){if(e!=='failed')alert('Noget gik galt – prøv igen');});
 };
 
-window.renewUser = function(id) {
-  var months = prompt('Forny med hvor mange måneder?','6');
+window.renewUser=function(id){
+  var months=prompt('Forny med hvor mange måneder?','6');
   if(!months)return;
-  var m = parseInt(months)||6;
-  var existing = STATE.allProfiles.filter(function(p){return p.id===id;})[0];
-  var base = existing&&existing.subscription_expires&&new Date(existing.subscription_expires)>new Date() ? new Date(existing.subscription_expires) : new Date();
+  var m=parseInt(months)||6;
+  var existing=STATE.allProfiles.filter(function(p){return p.id===id;})[0];
+  var base=existing&&existing.subscription_expires&&new Date(existing.subscription_expires)>new Date()?new Date(existing.subscription_expires):new Date();
   base.setMonth(base.getMonth()+m);
-  var newDate = base.toISOString().split('T')[0];
-  sbPatch('profiles',{subscription_expires:newDate},'id=eq.'+id)
-  .then(function(){loadAllProfiles().then(render);});
+  var newDate=base.toISOString().split('T')[0];
+  sbPatch('profiles',{subscription_expires:newDate},'id=eq.'+id).then(function(){loadAllProfiles().then(render);});
 };
 
-window.deleteUser = function(id) {
-  if(!confirm('Slet denne bruger? (Fjerner kun fra visningen - kontakt Supabase for fuld sletning)'))return;
-  // Deactivate by setting expired subscription
-  sbPatch('profiles',{subscription_expires:'2000-01-01'},'id=eq.'+id)
-  .then(function(){loadAllProfiles().then(render);});
+window.deleteUser=function(id){
+  if(!confirm('Deaktiver denne bruger?'))return;
+  sbPatch('profiles',{subscription_expires:'2000-01-01'},'id=eq.'+id).then(function(){loadAllProfiles().then(render);});
 };
 
-// ── START ────────────────────────────────────────────────────
 loadSession();
-// Always show login first, then check session
 render();
-if(STATE.session && STATE.session.access_token) {
+if(STATE.session&&STATE.session.access_token){
   loadProfile().then(function(){
-    if(STATE.profile && STATE.profile.id) {
-      loadAll();
-    } else {
-      // Session invalid - clear and show login
-      STATE.session = null;
-      localStorage.removeItem('pp_session');
-      render();
-    }
-  }).catch(function(){
-    STATE.session = null;
-    localStorage.removeItem('pp_session');
-    render();
-  });
+    if(STATE.profile&&STATE.profile.id){loadAll();}
+    else{STATE.session=null;localStorage.removeItem('pp_session');render();}
+  }).catch(function(){STATE.session=null;localStorage.removeItem('pp_session');render();});
 }
 </script>
 </body>
