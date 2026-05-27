@@ -656,27 +656,55 @@ function rMatches() {
       html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Hold 1: '+pct+'% · Hold 2: '+(100-pct)+'%</div><div style="height:4px;background:#eee;border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+sc+';border-radius:2px;"></div></div></div>';
       html+='</div>';
     }
-    // Show reserve players (those not in any match)
-    var usedIds=[];
-    for(var mi3=0;mi3<STATE.matches.length;mi3++){
-      var mm=STATE.matches[mi3];
-      usedIds=usedIds.concat(mm.t1).concat(mm.t2);
-    }
-    var reserves=STATE.players.filter(function(p){
-      return STATE.att.indexOf(p.id)>-1 && usedIds.indexOf(p.id)===-1;
-    });
-    if(reserves.length>0){
-      html+='<div class="card" style="margin-bottom:16px;background:#fef9e7;border-color:#f9e79f;">';
-      html+='<div style="font-size:11px;font-weight:600;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">📋 Træner med coach ('+reserves.length+')</div>';
-      for(var ri=0;ri<reserves.length;ri++){
-        var rp=reserves[ri];var ra=acolor(rp.id);var rs=sideInfo(rp.side);
-        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">';
-        html+='<div class="avatar" style="width:32px;height:32px;font-size:11px;color:'+ra.color+';background:'+ra.bg+';border-color:'+ra.border+';">'+initials(rp.name)+'</div>';
-        html+='<div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#111;">'+esc(rp.name)+'</div>';
-        html+='<div style="font-size:11px;color:#888;">'+('★'.repeat(rp.level))+' · '+rs.label+'</div></div>';
+    // Show reserve players per round
+    var rounds2=STATE.rounds||1;
+    if(rounds2>1){
+      // Group matches by round and show reserves per round
+      var roundData={};
+      for(var mi3=0;mi3<STATE.matches.length;mi3++){
+        var mm=STATE.matches[mi3];
+        var rnd=mm.round||1;
+        if(!roundData[rnd])roundData[rnd]={usedIds:[],reserveIds:mm.reserveIds||[]};
+        roundData[rnd].usedIds=roundData[rnd].usedIds.concat(mm.t1).concat(mm.t2);
+        if(mm.reserveIds)roundData[rnd].reserveIds=mm.reserveIds;
+      }
+      for(var rnd=1;rnd<=rounds2;rnd++){
+        var rd=roundData[rnd];if(!rd)continue;
+        var reserves=STATE.players.filter(function(p){
+          return rd.reserveIds.indexOf(p.id)>-1;
+        });
+        if(reserves.length>0){
+          html+='<div class="card" style="margin-bottom:12px;background:#fef9e7;border-color:#f9e79f;">';
+          html+='<div style="font-size:11px;font-weight:600;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">📋 Træner med coach – Runde '+rnd+' ('+reserves.length+')</div>';
+          for(var ri=0;ri<reserves.length;ri++){
+            var rp=reserves[ri];var ra=acolor(rp.id);var rs=sideInfo(rp.side);
+            html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">';
+            html+='<div class="avatar" style="width:32px;height:32px;font-size:11px;color:'+ra.color+';background:'+ra.bg+';border-color:'+ra.border+';">'+initials(rp.name)+'</div>';
+            html+='<div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#111;">'+esc(rp.name)+'</div>';
+            html+='<div style="font-size:11px;color:#888;">'+('★'.repeat(rp.level))+' · '+rs.label+'</div></div>';
+            html+='</div>';
+          }
+          html+='</div>';
+        }
+      }
+    } else {
+      // Single round - show all reserves
+      var usedIds=[];
+      for(var mi3=0;mi3<STATE.matches.length;mi3++){var mm=STATE.matches[mi3];usedIds=usedIds.concat(mm.t1).concat(mm.t2);}
+      var reserves=STATE.players.filter(function(p){return STATE.att.indexOf(p.id)>-1&&usedIds.indexOf(p.id)===-1;});
+      if(reserves.length>0){
+        html+='<div class="card" style="margin-bottom:12px;background:#fef9e7;border-color:#f9e79f;">';
+        html+='<div style="font-size:11px;font-weight:600;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">📋 Træner med coach ('+reserves.length+')</div>';
+        for(var ri=0;ri<reserves.length;ri++){
+          var rp=reserves[ri];var ra=acolor(rp.id);var rs=sideInfo(rp.side);
+          html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">';
+          html+='<div class="avatar" style="width:32px;height:32px;font-size:11px;color:'+ra.color+';background:'+ra.bg+';border-color:'+ra.border+';">'+initials(rp.name)+'</div>';
+          html+='<div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#111;">'+esc(rp.name)+'</div>';
+          html+='<div style="font-size:11px;color:#888;">'+('★'.repeat(rp.level))+' · '+rs.label+'</div></div>';
+          html+='</div>';
+        }
         html+='</div>';
       }
-      html+='</div>';
     }
 
     html+='<div style="height:1px;background:#e5e5e5;margin:20px 0;"></div>';
@@ -944,20 +972,9 @@ window.genMatches=function(){
   }
   function makePairs(grp,mode){
     var m=[];
-    if(mode==='balanced'){
-      grp.sort(function(a,b){return b.level-a.level;});
-      for(var i=0;i<grp.length-3;i+=4){var g=grp.slice(i,i+4);m.push({t1:[g[0].id,g[3].id],t2:[g[1].id,g[2].id]});}
-    } else if(mode==='split'){
-      grp.sort(function(a,b){return b.level-a.level;});
-      var h=Math.floor(grp.length/2);
-      var top=shuffle(grp.slice(0,h));var bot=shuffle(grp.slice(h));
-      for(var i=0;i<top.length-3;i+=4){var g=top.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
-      for(var i=0;i<bot.length-3;i+=4){var g=bot.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
-    } else {
-      grp=shuffle(grp);
-      for(var i=0;i<grp.length-3;i+=4){var g=grp.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}
-    }
-    // Sort each team: venstre first
+    if(mode==='balanced'){grp.sort(function(a,b){return b.level-a.level;});for(var i=0;i<grp.length-3;i+=4){var g=grp.slice(i,i+4);m.push({t1:[g[0].id,g[3].id],t2:[g[1].id,g[2].id]});}}
+    else if(mode==='split'){grp.sort(function(a,b){return b.level-a.level;});var h=Math.floor(grp.length/2);var top=shuffle(grp.slice(0,h));var bot=shuffle(grp.slice(h));for(var i=0;i<top.length-3;i+=4){var g=top.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}for(var i=0;i<bot.length-3;i+=4){var g=bot.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}}
+    else{grp=shuffle(grp);for(var i=0;i<grp.length-3;i+=4){var g=grp.slice(i,i+4);m.push({t1:[g[0].id,g[1].id],t2:[g[2].id,g[3].id]});}}
     for(var i=0;i<m.length;i++){m[i].t1=sortBySide(m[i].t1);m[i].t2=sortBySide(m[i].t2);}
     return m;
   }
@@ -966,16 +983,54 @@ window.genMatches=function(){
   var rounds=STATE.rounds||1;
   var allMatches=[];
 
-  for(var r=0;r<rounds;r++){
-    var roundMatches=[];
+  // Figure out how many players fit per round
+  var playersPerRound=Math.floor(ps.length/4)*4;
+  var reserveCount=ps.length-playersPerRound;
+
+  if(rounds===1||reserveCount===0){
+    // Simple case - no rotation needed
+    var m=[];
     if(grpSize>=2&&ps.length>=grpSize*4){
-      roundMatches=makePairs(ps.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(ps.slice(grpSize*4),STATE.matchMode));
+      m=makePairs(ps.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(ps.slice(grpSize*4),STATE.matchMode));
     } else {
-      roundMatches=makePairs(ps.slice(),STATE.matchMode);
+      m=makePairs(ps.slice(),STATE.matchMode);
     }
-    // Tag each match with round number
-    for(var i=0;i<roundMatches.length;i++){roundMatches[i].round=r+1;}
-    allMatches=allMatches.concat(roundMatches);
+    for(var i=0;i<m.length;i++)m[i].round=1;
+    allMatches=m;
+  } else {
+    // Rotate reserves between rounds
+    // Sort players so we can rotate reserves fairly
+    var shuffled=shuffle(ps.slice());
+    var totalReserveSlots=reserveCount*rounds;
+
+    // Track which players have been reserve
+    var reserveTracker={};
+    for(var i=0;i<shuffled.length;i++)reserveTracker[shuffled[i].id]=0;
+
+    for(var r=0;r<rounds;r++){
+      // Pick reserves for this round - prefer those who haven't been reserve yet
+      shuffled.sort(function(a,b){return reserveTracker[a.id]-reserveTracker[b.id];});
+      var roundReserves=shuffled.slice(0,reserveCount);
+      var roundPlayers=shuffled.slice(reserveCount);
+
+      // Mark these as having been reserve
+      for(var i=0;i<roundReserves.length;i++)reserveTracker[roundReserves[i].id]++;
+
+      // Re-shuffle playing players for variety
+      roundPlayers=shuffle(roundPlayers);
+
+      var m=[];
+      if(grpSize>=2&&roundPlayers.length>=grpSize*4){
+        m=makePairs(roundPlayers.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(roundPlayers.slice(grpSize*4),STATE.matchMode));
+      } else {
+        m=makePairs(roundPlayers,STATE.matchMode);
+      }
+      for(var i=0;i<m.length;i++){
+        m[i].round=r+1;
+        m[i].reserveIds=roundReserves.map(function(p){return p.id;});
+      }
+      allMatches=allMatches.concat(m);
+    }
   }
 
   STATE.matches=allMatches;render();
