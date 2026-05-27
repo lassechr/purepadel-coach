@@ -510,8 +510,9 @@ function rDrills() {
     html+='</div></div>';
     html+='<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">';
     if(vs.length) html+='<button class="btn btn-yellow btn-sm" onclick="toggleVid(\''+d.id+'\')">Video</button>';
-    if(!d.from_master){
-      if(STATE.profile&&STATE.profile.role==='superadmin'){html+='<button class="btn btn-light btn-sm" style="background:#eafaf1;color:#1e8449;border-color:#a9dfbf;" onclick="makeMasterDrill(this.dataset.id)" data-id="'+d.id+'">Gør til master</button>';}
+    if(STATE.profile&&STATE.profile.role==='superadmin'){
+      html+='<button title="Administrer øvelse" style="background:none;border:1.5px solid #ddd;border-radius:6px;padding:5px 8px;cursor:pointer;color:#888;font-size:14px;line-height:1;" onclick="editDrill(\''+d.id+'\')">&#9881;</button>';
+    } else if(!d.from_master){
       html+='<button class="btn btn-light btn-sm" onclick="editDrill(\''+d.id+'\')">Rediger</button>';
       html+='<button class="btn btn-red btn-sm" onclick="delDrill(\''+d.id+'\')">Slet</button>';
     }
@@ -792,23 +793,57 @@ function rMatches() {
 function rDrillModal(){
   var ed=!!STATE.editDrill;var d=STATE.editDrill||{};
   var vs=STATE.mvids||[];
-  return'<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">'
-    +'<div class="modal-title">'+(ed?'Rediger øvelse':'Ny øvelse')+'</div>'
-    +'<div class="modal-sub">Gemmes i databasen og er synlig på alle enheder</div>'
-    +'<div class="fg"><label class="flabel">Titel</label><input class="finput" id="mT" value="'+esc(ed?d.title||'':'')+'" placeholder="Øvelsens navn..."></div>'
-    +'<div class="frow"><div><label class="flabel">Kategori</label><select class="finput" id="mC">'+CATS.map(function(c){return'<option value="'+c.id+'" '+(ed&&d.cat===c.id?'selected':'')+'>'+c.label+'</option>';}).join('')+'</select></div>'
-    +'<div><label class="flabel">Niveau</label><select class="finput" id="mL">'+['Begynder','Alle','Øvet','Avanceret'].map(function(l){return'<option value="'+l+'" '+(ed&&d.level===l?'selected':(!ed&&l==='Alle'?'selected':''))+'>'+l+'</option>';}).join('')+'</select></div></div>'
-    +'<div class="fg"><label class="flabel">Antal spillere</label><input class="finput" id="mP" type="number" min="1" max="8" value="'+(ed?d.players||2:2)+'"></div>'
-    +'<div class="fg"><label class="flabel">Beskrivelse</label><textarea class="finput" id="mD" style="resize:vertical;min-height:80px;" placeholder="Beskriv øvelsen...">'+(ed?esc(d.description||d.desc||''):'')+'</textarea></div>'
-    +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">'
-    +'<div class="flabel" style="margin-bottom:10px;">Video (YouTube-link)</div>'
-    +'<div class="fg"><input class="finput" id="mVU" placeholder="https://youtube.com/watch?v=..." value="'+(ed&&d.videos&&d.videos[0]?esc(d.videos[0].url):'')+'"></div>'
-    +'<div class="fg"><input class="finput" id="mVN" placeholder="Titel på videoen (valgfrit)" value="'+(ed&&d.videos&&d.videos[0]?esc(d.videos[0].title):'')+'"></div>'
-    +'</div>'
-    +'<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="saveDrill()">'+(ed?'Gem ændringer':'Gem øvelse')+'</button></div>'
-    +'</div></div>';
+  var isSuperadmin=STATE.profile&&STATE.profile.role==='superadmin';
+  var isSheetDrill=ed&&d.id&&String(d.id).startsWith('sheet_');
+  var isMaster=ed&&!!d.from_master;
+  var canEdit=ed&&d.id&&!isSheetDrill;
+  var html='';
+  html+='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
+  html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:6px;">';
+  html+='<div class="modal-title">'+(ed?'Rediger øvelse':'Ny øvelse')+'</div>';
+  if(ed&&isSuperadmin&&canEdit){
+    html+='<button class="btn btn-red btn-sm" onclick="delDrill(\'' + d.id + '\')" style="flex-shrink:0;margin-top:4px;">Slet øvelse</button>';
+  }
+  html+='</div>';
+  html+='<div class="modal-sub" style="margin-bottom:16px;">';
+  if(isSheetDrill){html+='<span style="color:#b7770d;">⚠ Master-øvelse fra Google Sheets – kan ikke redigeres her</span>';}
+  else if(isMaster){html+='<span style="color:#1e8449;">✓ Masterøvelse – synlig for alle trænere</span>';}
+  else{html+='Gemmes i databasen og er synlig på alle enheder';}
+  html+='</div>';
+  if(isSheetDrill){
+    html+='<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:14px;margin:4px 0 14px;font-size:13px;color:#888;">';
+    html+='Denne øvelse kommer fra Google Sheets og kan kun redigeres der.<br>Video-link: <strong>'+(d.videos&&d.videos[0]?esc(d.videos[0].url):'Ingen')+'</strong>';
+    html+='</div>';
+    html+='<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Luk</button></div>';
+    html+='</div></div>';
+    return html;
+  }
+  html+='<div class="fg"><label class="flabel">Titel</label><input class="finput" id="mT" value="'+esc(ed?d.title||'':'')+'" placeholder="Øvelsens navn..."></div>';
+  html+='<div class="frow"><div><label class="flabel">Kategori</label><select class="finput" id="mC">'+CATS.map(function(c){return'<option value="'+c.id+'" '+(ed&&d.cat===c.id?'selected':'')+'>'+c.label+'</option>';}).join('')+'</select></div>';
+  html+='<div><label class="flabel">Niveau</label><select class="finput" id="mL">'+['Begynder','Alle','Øvet','Avanceret'].map(function(l){return'<option value="'+l+'" '+(ed&&d.level===l?'selected':(!ed&&l==='Alle'?'selected':''))+'>'+l+'</option>';}).join('')+'</select></div></div>';
+  html+='<div class="fg"><label class="flabel">Antal spillere</label><input class="finput" id="mP" type="number" min="1" max="8" value="'+(ed?d.players||2:2)+'"></div>';
+  html+='<div class="fg"><label class="flabel">Beskrivelse</label><textarea class="finput" id="mD" style="resize:vertical;min-height:80px;" placeholder="Beskriv øvelsen...">'+(ed?esc(d.description||d.desc||''):'')+'</textarea></div>';
+  html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html+='<div class="flabel" style="margin-bottom:10px;">Video (YouTube-link)</div>';
+  html+='<div class="fg"><input class="finput" id="mVU" placeholder="https://youtube.com/watch?v=..." value="'+(ed&&d.videos&&d.videos[0]?esc(d.videos[0].url):'')+'" ></div>';
+  html+='<div class="fg"><input class="finput" id="mVN" placeholder="Titel på videoen (valgfrit)" value="'+(ed&&d.videos&&d.videos[0]?esc(d.videos[0].title):'')+'" ></div>';
+  html+='</div>';
+  if(ed&&isSuperadmin&&canEdit){
+    html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html+='<div class="flabel" style="margin-bottom:8px;">Superadmin</div>';
+    if(isMaster){
+      html+='<button class="btn btn-sm" style="background:#fef9e7;color:#b7770d;border:1.5px solid #f9e79f;" onclick="unmasterDrill(\''+d.id+'\')">★ Fjern som masterøvelse</button>';
+      html+='<div style="font-size:11px;color:#aaa;margin-top:6px;">Vil skjule øvelsen for trænere der ikke ejer den</div>';
+    } else {
+      html+='<button class="btn btn-sm" style="background:#eafaf1;color:#1e8449;border:1.5px solid #a9dfbf;" onclick="makeMasterDrill(\''+d.id+'\')">★ Gør til masterøvelse</button>';
+      html+='<div style="font-size:11px;color:#aaa;margin-top:6px;">Gør øvelsen synlig for alle trænere</div>';
+    }
+    html+='</div>';
+  }
+  html+='<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="saveDrill()">'+(ed?'Gem ændringer':'Gem øvelse')+'</button></div>';
+  html+='</div></div>';
+  return html;
 }
-
 function rPlayerModal(){
   return'<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">'
     +'<div class="modal-title">Tilføj spiller</div>'
@@ -1046,8 +1081,8 @@ window.saveDrill=function(){
 };
 
 window.delDrill=function(id){
-  if(!confirm('Slet øvelse?'))return;
-  sbDelete('drills','id=eq.'+id).then(function(){loadDrills().then(render);});
+  if(!confirm('Slet øvelse? Handlingen kan ikke fortrydes.'))return;
+  sbDelete('drills','id=eq.'+id).then(function(){closeModal();loadDrills().then(render);});
 };
 
 window.savePlayer=function(){
@@ -1257,7 +1292,14 @@ window.makeMasterDrill=function(id){
   if(!id)return;
   if(!confirm('Gør denne øvelse til masterøvelse synlig for alle?'))return;
   sbPatch('drills',{from_master:true},'id=eq.'+id).then(function(){
-    loadDrills().then(render);
+    closeModal();loadDrills().then(render);
+  });
+};
+window.unmasterDrill=function(id){
+  if(!id)return;
+  if(!confirm('Fjern masterøvelse-status? Øvelsen bliver ikke længere synlig for andre trænere.'))return;
+  sbPatch('drills',{from_master:false},'id=eq.'+id).then(function(){
+    closeModal();loadDrills().then(render);
   });
 };
 window.makeMaster=function(id){
