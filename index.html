@@ -656,6 +656,29 @@ function rMatches() {
       html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Hold 1: '+pct+'% · Hold 2: '+(100-pct)+'%</div><div style="height:4px;background:#eee;border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+sc+';border-radius:2px;"></div></div></div>';
       html+='</div>';
     }
+    // Show reserve players (those not in any match)
+    var usedIds=[];
+    for(var mi3=0;mi3<STATE.matches.length;mi3++){
+      var mm=STATE.matches[mi3];
+      usedIds=usedIds.concat(mm.t1).concat(mm.t2);
+    }
+    var reserves=STATE.players.filter(function(p){
+      return STATE.att.indexOf(p.id)>-1 && usedIds.indexOf(p.id)===-1;
+    });
+    if(reserves.length>0){
+      html+='<div class="card" style="margin-bottom:16px;background:#fef9e7;border-color:#f9e79f;">';
+      html+='<div style="font-size:11px;font-weight:600;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">📋 Træner med coach ('+reserves.length+')</div>';
+      for(var ri=0;ri<reserves.length;ri++){
+        var rp=reserves[ri];var ra=acolor(rp.id);var rs=sideInfo(rp.side);
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">';
+        html+='<div class="avatar" style="width:32px;height:32px;font-size:11px;color:'+ra.color+';background:'+ra.bg+';border-color:'+ra.border+';">'+initials(rp.name)+'</div>';
+        html+='<div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#111;">'+esc(rp.name)+'</div>';
+        html+='<div style="font-size:11px;color:#888;">'+('★'.repeat(rp.level))+' · '+rs.label+'</div></div>';
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+
     html+='<div style="height:1px;background:#e5e5e5;margin:20px 0;"></div>';
   }
 
