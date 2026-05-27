@@ -830,21 +830,68 @@ function rHistorik(){
     if(STATE.openSession===s.id){
       html+='<div style="margin-top:10px;">';
       var baneCount=Math.ceil(matches.length/rounds);
-      for(var mi=0;mi<matches.length;mi++){
-        var m=matches[mi];
-        var baneNr=(mi%baneCount)+1;
-        var roundNr=rounds>1?m.round||Math.floor(mi/baneCount)+1:null;
-        // Get player names from current players list OR from stored names
-        var p1n=m.p1name||getPlayerName(m.t1[0]);
-        var p2n=m.p2name||getPlayerName(m.t1[1]);
-        var p3n=m.p3name||getPlayerName(m.t2[0]);
-        var p4n=m.p4name||getPlayerName(m.t2[1]);
-        html+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:6px;margin-bottom:6px;font-size:13px;">';
-        html+='<span style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">Bane '+baneNr+(roundNr?' · Runde '+roundNr:'')+'</span>';
-        html+='<span style="color:#1d6fb5;font-weight:600;">'+esc(p1n)+' / '+esc(p2n)+'</span>';
-        html+='<span style="color:#aaa;margin:0 8px;">vs</span>';
-        html+='<span style="color:#c0392b;font-weight:600;">'+esc(p3n)+' / '+esc(p4n)+'</span>';
-        html+='</div>';
+
+      if(rounds>1){
+        // Group by round
+        var roundGroups={};
+        for(var mi=0;mi<matches.length;mi++){
+          var m=matches[mi];
+          var rnd=m.round||Math.floor(mi/baneCount)+1;
+          if(!roundGroups[rnd])roundGroups[rnd]=[];
+          roundGroups[rnd].push(m);
+        }
+        for(var rnd=1;rnd<=rounds;rnd++){
+          var rMatches=roundGroups[rnd]||[];
+          html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;">Runde '+rnd+'</div>';
+          for(var mi=0;mi<rMatches.length;mi++){
+            var m=rMatches[mi];
+            var p1n=m.p1name||getPlayerName(m.t1[0]);
+            var p2n=m.p2name||getPlayerName(m.t1[1]);
+            var p3n=m.p3name||getPlayerName(m.t2[0]);
+            var p4n=m.p4name||getPlayerName(m.t2[1]);
+            html+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:6px;margin-bottom:6px;font-size:13px;">';
+            html+='<span style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">Bane '+(mi+1)+'</span>';
+            html+='<span style="color:#1d6fb5;font-weight:600;">'+esc(p1n)+' / '+esc(p2n)+'</span>';
+            html+='<span style="color:#aaa;margin:0 8px;">vs</span>';
+            html+='<span style="color:#c0392b;font-weight:600;">'+esc(p3n)+' / '+esc(p4n)+'</span>';
+            html+='</div>';
+          }
+          // Show coach players for this round
+          var coachIds=rMatches.length>0&&rMatches[0].reserveIds?rMatches[0].reserveIds:[];
+          if(coachIds.length>0){
+            html+='<div style="padding:8px 10px;background:#fef9e7;border:1px solid #f9e79f;border-radius:6px;margin-bottom:6px;font-size:13px;">';
+            html+='<span style="font-size:10px;font-weight:600;color:#b7770d;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">📋 Coach</span>';
+            var coachNames=coachIds.map(function(id){
+              for(var i=0;i<matches.length;i++){if(matches[i].p1name&&matches[i].t1&&matches[i].t1[0]===id)return matches[i].p1name;}
+              return getPlayerName(id);
+            });
+            html+='<span style="color:#b7770d;font-weight:600;">'+coachNames.map(function(n){return esc(n);}).join(' / ')+'</span>';
+            html+='</div>';
+          }
+        }
+      } else {
+        // Single round
+        for(var mi=0;mi<matches.length;mi++){
+          var m=matches[mi];
+          var p1n=m.p1name||getPlayerName(m.t1[0]);
+          var p2n=m.p2name||getPlayerName(m.t1[1]);
+          var p3n=m.p3name||getPlayerName(m.t2[0]);
+          var p4n=m.p4name||getPlayerName(m.t2[1]);
+          html+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:6px;margin-bottom:6px;font-size:13px;">';
+          html+='<span style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">Bane '+(mi+1)+'</span>';
+          html+='<span style="color:#1d6fb5;font-weight:600;">'+esc(p1n)+' / '+esc(p2n)+'</span>';
+          html+='<span style="color:#aaa;margin:0 8px;">vs</span>';
+          html+='<span style="color:#c0392b;font-weight:600;">'+esc(p3n)+' / '+esc(p4n)+'</span>';
+          html+='</div>';
+        }
+        // Coach for single round
+        var coachIds=matches.length>0&&matches[0].reserveIds?matches[0].reserveIds:[];
+        if(coachIds.length>0){
+          html+='<div style="padding:8px 10px;background:#fef9e7;border:1px solid #f9e79f;border-radius:6px;margin-bottom:6px;font-size:13px;">';
+          html+='<span style="font-size:10px;font-weight:600;color:#b7770d;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">📋 Coach</span>';
+          html+='<span style="color:#b7770d;font-weight:600;">'+coachIds.map(function(id){return esc(getPlayerName(id));}).join(' / ')+'</span>';
+          html+='</div>';
+        }
       }
       html+='</div>';
     }
