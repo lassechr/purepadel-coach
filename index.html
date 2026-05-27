@@ -659,11 +659,11 @@ function rMatches() {
           html+='<div style="font-family:Bebas Neue,sans-serif;font-size:12px;letter-spacing:2px;color:#aaa;margin-bottom:12px;">Bane '+(mi2+1)+' <span style="color:'+sc+';">– '+sl+'</span></div>';
           html+='<div class="match-teams"><div style="display:flex;flex-direction:column;gap:8px;">';
           var tw1=teamSideWarning(p1,p2);var tw2=teamSideWarning(p3,p4);
-          var tw1=teamSideWarning(p1,p2);var tw2=teamSideWarning(p3,p4);var tm1=[p1,p2];
-          for(var ti=0;ti<tm1.length;ti++){var tp=tm1[ti];var ta=acolor(tp.id);var ws=tw1;html+='<div class="mp"><div class="mp-av" style="color:'+ta.color+';background:'+ta.bg+';border-color:'+ta.border+';">'+initials(tp.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(tp.name)+(ws?' <span style="color:#d35400;font-size:11px;">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp.level))+(ws?' · <span style="color:#d35400;">foretrækker højre side</span>':'')+'</div></div></div>';}
+          html+='<div class="mp"><div class="mp-av" style="color:'+acolor(p1.id).color+';background:'+acolor(p1.id).bg+';border-color:'+acolor(p1.id).border+';">'+initials(p1.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(p1.name)+(tw1?' <span style="color:#d35400;font-size:11px;">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(p1.level))+(tw1?' · <span style="color:#d35400;">foretrækker '+p1.side+' side</span>':'')+'</div></div></div>';
+          html+='<div class="mp"><div class="mp-av" style="color:'+acolor(p2.id).color+';background:'+acolor(p2.id).bg+';border-color:'+acolor(p2.id).border+';">'+initials(p2.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(p2.name)+(tw1?' <span style="color:#d35400;font-size:11px;">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(p2.level))+(tw1?' · <span style="color:#d35400;">foretrækker '+p2.side+' side</span>':'')+'</div></div></div>';
           html+='</div><div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:#ccc;text-align:center;">VS</div><div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">';
-          var tm2=[p3,p4];
-          for(var ti2=0;ti2<tm2.length;ti2++){var tp2=tm2[ti2];var ta2=acolor(tp2.id);var ws2=tw2;html+='<div class="mp r"><div class="mp-av" style="color:'+ta2.color+';background:'+ta2.bg+';border-color:'+ta2.border+';">'+initials(tp2.name)+'</div><div style="text-align:right;"><div style="font-size:13px;font-weight:600;color:#111;">'+(ws2?'<span style="color:#d35400;font-size:11px;">⚠</span> ':'')+esc(tp2.name)+'</div><div style="font-size:11px;color:#aaa;">'+(ws2?'<span style="color:#d35400;">foretrækker venstre side</span> · ':'')+''+('★'.repeat(tp2.level))+'</div></div></div>';}
+          var tm2=[{p:p3,partner:p4},{p:p4,partner:p3}];
+          for(var ti2=0;ti2<tm2.length;ti2++){var tp2=tm2[ti2].p;var tpar2=tm2[ti2].partner;var ta2=acolor(tp2.id);var ws2=tw2&&tp2.side!=='begge'&&tpar2.side!=='begge'&&tp2.side===tpar2.side;html+='<div class="mp r"><div class="mp-av" style="color:'+ta2.color+';background:'+ta2.bg+';border-color:'+ta2.border+';">'+initials(tp2.name)+'</div><div style="text-align:right;"><div style="font-size:13px;font-weight:600;color:#111;">'+(ws2?'<span style="color:#d35400;font-size:11px;">⚠</span> ':'')+esc(tp2.name)+'</div><div style="font-size:11px;color:#aaa;">'+(ws2?'<span style="color:#d35400;">foretrækker venstre side</span> · ':'')+''+('★'.repeat(tp2.level))+'</div></div></div>';}
           html+='</div></div>';
           html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Hold 1: '+pct+'% · Hold 2: '+(100-pct)+'%</div><div style="height:4px;background:#eee;border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+sc+';border-radius:2px;"></div></div></div>';
           html+='</div>';
@@ -703,13 +703,13 @@ function rMatches() {
         var baneNr=(mi2%Math.ceil(STATE.matches.length/(STATE.rounds||1)))+1;
         html+='<div class="card">';
         html+='<div style="font-family:Bebas Neue,sans-serif;font-size:12px;letter-spacing:2px;color:#aaa;margin-bottom:12px;">Bane '+baneNr+' <span style="color:'+sc+';">– '+sl+'</span></div>';
-        html+='<div class="match-teams"><div style="display:flex;flex-direction:column;gap:8px;">';
         var tw1=teamSideWarning(p1,p2);var tw2=teamSideWarning(p3,p4);
-        var tw1=teamSideWarning(p1,p2);var tw2=teamSideWarning(p3,p4);var tm1=[p1,p2];
-        for(var ti=0;ti<tm1.length;ti++){var tp=tm1[ti];var ta=acolor(tp.id);var ws=tw1;html+='<div class="mp"><div class="mp-av" style="color:'+ta.color+';background:'+ta.bg+';border-color:'+ta.border+';">'+initials(tp.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(tp.name)+(ws?' <span style="color:#d35400;font-size:11px;" title="Spiller på ikke-foretrukken side">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp.level))+(ws?' · <span style="color:#d35400;">foretrækker højre side</span>':'')+'</div></div></div>';}
+        html+='<div class="mp"><div class="mp-av" style="color:'+acolor(p1.id).color+';background:'+acolor(p1.id).bg+';border-color:'+acolor(p1.id).border+';">'+initials(p1.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(p1.name)+(tw1?' <span style="color:#d35400;font-size:11px;">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(p1.level))+(tw1?' · <span style="color:#d35400;">foretrækker '+p1.side+' side</span>':'')+'</div></div></div>';
+        html+='<div class="mp"><div class="mp-av" style="color:'+acolor(p2.id).color+';background:'+acolor(p2.id).bg+';border-color:'+acolor(p2.id).border+';">'+initials(p2.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(p2.name)+(tw1?' <span style="color:#d35400;font-size:11px;">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(p2.level))+(tw1?' · <span style="color:#d35400;">foretrækker '+p2.side+' side</span>':'')+'</div></div></div>';
+        for(var ti=0;ti<tm1.length;ti++){var tp=tm1[ti].p;var tpar=tm1[ti].partner;var ta=acolor(tp.id);var ws=tw1&&tp.side!=='begge'&&tpar.side!=='begge'&&tp.side===tpar.side;html+='<div class="mp"><div class="mp-av" style="color:'+ta.color+';background:'+ta.bg+';border-color:'+ta.border+';">'+initials(tp.name)+'</div><div><div style="font-size:13px;font-weight:600;color:#111;">'+esc(tp.name)+(ws?' <span style="color:#d35400;font-size:11px;" title="Spiller på ikke-foretrukken side">⚠</span>':'')+'</div><div style="font-size:11px;color:#aaa;">'+('★'.repeat(tp.level))+(ws?' · <span style="color:#d35400;">foretrækker højre side</span>':'')+'</div></div></div>';}
         html+='</div><div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:#ccc;text-align:center;">VS</div><div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">';
-        var tm2=[p3,p4];
-        for(var ti2=0;ti2<tm2.length;ti2++){var tp2=tm2[ti2];var ta2=acolor(tp2.id);var ws2=tw2;html+='<div class="mp r"><div class="mp-av" style="color:'+ta2.color+';background:'+ta2.bg+';border-color:'+ta2.border+';">'+initials(tp2.name)+'</div><div style="text-align:right;"><div style="font-size:13px;font-weight:600;color:#111;">'+(ws2?'<span style="color:#d35400;font-size:11px;">⚠</span> ':'')+esc(tp2.name)+'</div><div style="font-size:11px;color:#aaa;">'+(ws2?'<span style="color:#d35400;">foretrækker venstre side</span> · ':'')+''+('★'.repeat(tp2.level))+'</div></div></div>';}
+        var tm2=[{p:p3,partner:p4},{p:p4,partner:p3}];
+        for(var ti2=0;ti2<tm2.length;ti2++){var tp2=tm2[ti2].p;var tpar2=tm2[ti2].partner;var ta2=acolor(tp2.id);var ws2=tw2&&tp2.side!=='begge'&&tpar2.side!=='begge'&&tp2.side===tpar2.side;html+='<div class="mp r"><div class="mp-av" style="color:'+ta2.color+';background:'+ta2.bg+';border-color:'+ta2.border+';">'+initials(tp2.name)+'</div><div style="text-align:right;"><div style="font-size:13px;font-weight:600;color:#111;">'+(ws2?'<span style="color:#d35400;font-size:11px;">⚠</span> ':'')+esc(tp2.name)+'</div><div style="font-size:11px;color:#aaa;">'+(ws2?'<span style="color:#d35400;">foretrækker venstre side</span> · ':'')+''+('★'.repeat(tp2.level))+'</div></div></div>';}
         html+='</div></div>';
         html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;"><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Hold 1: '+pct+'% · Hold 2: '+(100-pct)+'%</div><div style="height:4px;background:#eee;border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+sc+';border-radius:2px;"></div></div></div>';
         html+='</div>';
@@ -938,16 +938,19 @@ function rHistorik(){
 }
 
 window.teamSideWarning=function(pa, pb){
-  // Returns true if the two players on same team have a side conflict
-  // Perfect: one venstre + one højre (or either has 'begge')
-  // Warning: both venstre OR both højre
+  // Returns true if team has two players preferring same side
   if(!pa||!pb)return false;
   var sa=pa.side; var sb=pb.side;
   if(sa==='begge'||sb==='begge')return false;
-  // Both prefer same side = warning
-  var aLeft=(sa==='venstre');
-  var bLeft=(sb==='venstre');
-  return aLeft===bLeft; // both left or both right
+  return sa===sb; // both same side = warning
+}
+window.playerSideWarn=function(player, other){
+  // Returns true only for the specific player that is "out of place"
+  // i.e. when both prefer same side, the one whose side matches the other is NOT warned
+  // Actually we just warn both - but show the side preference as info
+  if(!player||!other)return false;
+  if(player.side==='begge'||other.side==='begge')return false;
+  return player.side===other.side;
 }
 
 function getPlayerName(id){
