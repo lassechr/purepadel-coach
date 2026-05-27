@@ -135,15 +135,16 @@ var STATE = {
   profile: null,
   tab: 'drills',
   drills: [], sheetDrills: [],
-  players: [], allProfiles: [],
+  players: [], allProfiles: [], sessions: [],
   fcat: 'alle',
   modal: null, editDrill: null,
   matches: [], att: [],
   matchMode: 'balanced',
-  ov: null,
+  ov: null, openSession: null,
   mvids: [],
   irows: [], showImp: false,
-  loading: false
+  loading: false,
+  rounds: 1, baneGroups: 0
 };
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -263,6 +264,12 @@ function loadAllProfiles() {
   });
 }
 
+function loadSessions(){
+  return sbGet('sessions','club_id=eq.'+clubId()+'&order=date.desc').then(function(data){
+    if(Array.isArray(data))STATE.sessions=data;
+  });
+}
+
 function loadSheet() {
   return new Promise(function(resolve) {
     var xhr = new XMLHttpRequest();
@@ -296,7 +303,7 @@ function allDrills() { return STATE.sheetDrills.concat(STATE.drills); }
 
 function loadAll() {
   STATE.loading = true; render();
-  var promises = [loadPlayers(), loadDrills(), loadSheet()];
+  var promises = [loadPlayers(), loadDrills(), loadSheet(), loadSessions()];
   if(STATE.profile && STATE.profile.role === 'superadmin') promises.push(loadAllProfiles());
   Promise.all(promises).then(function() {
     STATE.loading = false; render();
@@ -340,7 +347,7 @@ function render() {
     tabs = [{id:'admin',label:'Admin'},{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kampopsætning'}];
     if(STATE.tab === 'admin' && p.role !== 'superadmin') STATE.tab = 'drills';
   } else {
-    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kampopsætning'},{id:'konto',label:'Min konto'}];
+    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kampopsætning'},{id:'historik',label:'Historik'},{id:'konto',label:'Min konto'}];
     if(STATE.tab === 'admin') STATE.tab = 'drills';
   }
 
@@ -376,6 +383,7 @@ function render() {
     else if(STATE.tab==='drills') html += rDrills();
     else if(STATE.tab==='players') html += rPlayers();
     else if(STATE.tab==='matches') html += rMatches();
+    else if(STATE.tab==='historik') html += rHistorik();
     else if(STATE.tab==='konto') html += rKonto();
     else html += rMatches();
   }
@@ -614,6 +622,7 @@ function rMatches() {
   html+='<div style="display:flex;gap:8px;margin-bottom:20px;">';
   html+='<button class="btn btn-dark'+(STATE.att.length<4?' btn-disabled':'')+'" onclick="genMatches()" '+(STATE.att.length<4?'disabled':'')+'>'+(STATE.matches.length>0?'Generer nye kampe':'Generer kampe')+'</button>';
   if(STATE.matches.length) html+='<button class="btn btn-light" onclick="clrMatches()">Ryd</button>';
+  if(STATE.matches.length) html+='<button class="btn btn-green" onclick="promptSaveSession()">Gem træning</button>';
   html+='</div>';
 
   // Matches first
@@ -633,7 +642,7 @@ function rMatches() {
       var sc=diff<0.5?'#1e8449':diff<1?'#b7770d':'#c0392b';
       var sl=diff<0.5?'Meget balanceret':diff<1?'Jævne hold':'Niveauforskel';
       html+='<div class="card">';
-      var rlbl=(STATE.rounds&&STATE.rounds>1)?' · Runde '+m.round:'';html+='<div style="font-family:Bebas Neue,sans-serif;font-size:12px;letter-spacing:2px;color:#aaa;margin-bottom:12px;">Bane '+(mi2+1)+rlbl+' <span style="color:'+sc+';">– '+sl+'</span></div>';
+      var baneNr=(mi2%Math.ceil(STATE.matches.length/(STATE.rounds||1)))+1;var rlbl=(STATE.rounds&&STATE.rounds>1)?' · Runde '+m.round:'';html+='<div style="font-family:Bebas Neue,sans-serif;font-size:12px;letter-spacing:2px;color:#aaa;margin-bottom:12px;">Bane '+baneNr+rlbl+' <span style="color:'+sc+';">– '+sl+'</span></div>';
       html+='<div class="match-teams">';
       html+='<div style="display:flex;flex-direction:column;gap:8px;">';
       var tm1=[p1,p2];
@@ -736,6 +745,63 @@ function rAddUserModal(){
 }
 
 // ── ACTIONS ──────────────────────────────────────────────────
+function rHistorik(){
+  var html='<div class="sec-head"><div class="sec-title">Historik</div></div>';
+  if(STATE.sessions.length===0){
+    html+='<div class="empty">Ingen gemte træninger endnu<br><br><small style="color:#bbb;">Gem en træning fra Kampopsætning</small></div>';
+    return html;
+  }
+  for(var si=0;si<STATE.sessions.length;si++){
+    var s=STATE.sessions[si];
+    var matches=s.matches||[];
+    var playerIds=s.player_ids||[];
+    var rounds=s.rounds||1;
+    html+='<div class="card" style="margin-bottom:8px;">';
+    html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:12px;">';
+    html+='<div style="flex:1;">';
+    html+='<div style="font-size:15px;font-weight:600;color:#111;margin-bottom:4px;">'+esc(s.name)+'</div>';
+    html+='<div style="font-size:12px;color:#888;">'+formatDate(s.date)+' · '+playerIds.length+' spillere · '+matches.length+' kampe'+(rounds>1?' · '+rounds+' runder':'')+'</div>';
+    html+='</div>';
+    html+='<button onclick="deleteSession(''+s.id+'')" style="background:#fff0f0;color:#c0392b;border:1.5px solid #f5b7b1;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;">Slet</button>';
+    html+='</div>';
+
+    // Show matches collapsed - click to expand
+    html+='<div onclick="toggleSession(''+s.id+'')" style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<span style="font-size:12px;color:#888;font-weight:600;letter-spacing:.5px;text-transform:uppercase;">Vis kampe</span>';
+    html+='<span style="font-size:12px;color:#aaa;">'+(STATE.openSession===s.id?'▲':'▼')+'</span>';
+    html+='</div>';
+
+    if(STATE.openSession===s.id){
+      html+='<div style="margin-top:10px;">';
+      var baneCount=Math.ceil(matches.length/rounds);
+      for(var mi=0;mi<matches.length;mi++){
+        var m=matches[mi];
+        var baneNr=(mi%baneCount)+1;
+        var roundNr=rounds>1?m.round||Math.floor(mi/baneCount)+1:null;
+        // Get player names from current players list OR from stored names
+        var p1n=m.p1name||getPlayerName(m.t1[0]);
+        var p2n=m.p2name||getPlayerName(m.t1[1]);
+        var p3n=m.p3name||getPlayerName(m.t2[0]);
+        var p4n=m.p4name||getPlayerName(m.t2[1]);
+        html+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:6px;margin-bottom:6px;font-size:13px;">';
+        html+='<span style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">Bane '+baneNr+(roundNr?' · Runde '+roundNr:'')+'</span>';
+        html+='<span style="color:#1d6fb5;font-weight:600;">'+esc(p1n)+' / '+esc(p2n)+'</span>';
+        html+='<span style="color:#aaa;margin:0 8px;">vs</span>';
+        html+='<span style="color:#c0392b;font-weight:600;">'+esc(p3n)+' / '+esc(p4n)+'</span>';
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+  return html;
+}
+
+function getPlayerName(id){
+  for(var i=0;i<STATE.players.length;i++)if(STATE.players[i].id===id)return STATE.players[i].name;
+  return id||'?';
+}
+
 function rKonto(){
   var p=STATE.profile;
   var days=daysLeft(p.subscription_expires);
@@ -965,6 +1031,36 @@ window.deleteUser=function(id){
   if(!confirm('Deaktiver denne bruger?'))return;
   sbPatch('profiles',{subscription_expires:'2000-01-01'},'id=eq.'+id).then(function(){loadAllProfiles().then(render);});
 };
+
+window.toggleSession=function(id){STATE.openSession=STATE.openSession===id?null:id;render();};
+window.deleteSession=function(id){if(!confirm('Slet denne træning?'))return;sbDelete('sessions','id=eq.'+id).then(function(){loadSessions().then(render);});};
+window.promptSaveSession=function(){
+  var name=prompt('Navn på træningen:','Uge '+getWeekNumber(new Date())+' – '+new Date().toLocaleDateString('da-DK',{weekday:'long'}));
+  if(!name)return;
+  // Store player names in matches for historical lookup
+  var matchesWithNames=STATE.matches.map(function(m){
+    return {
+      t1:m.t1,t2:m.t2,round:m.round||1,
+      p1name:getPlayerName(m.t1[0]),p2name:getPlayerName(m.t1[1]),
+      p3name:getPlayerName(m.t2[0]),p4name:getPlayerName(m.t2[1])
+    };
+  });
+  var data={
+    club_id:clubId(),
+    name:name,
+    date:new Date().toISOString().split('T')[0],
+    player_ids:JSON.stringify(STATE.att),
+    matches:JSON.stringify(matchesWithNames),
+    rounds:STATE.rounds||1
+  };
+  sbPost('sessions',data).then(function(){
+    loadSessions().then(function(){
+      render();
+      alert('Træning gemt under Historik!');
+    });
+  });
+};
+function getWeekNumber(d){d=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));var y=new Date(Date.UTC(d.getUTCFullYear(),0,1));return Math.ceil((((d-y)/86400000)+1)/7);}
 
 loadSession();
 render();
