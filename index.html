@@ -340,7 +340,7 @@ function render() {
     tabs = [{id:'admin',label:'Admin'},{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kampopsætning'}];
     if(STATE.tab === 'admin' && p.role !== 'superadmin') STATE.tab = 'drills';
   } else {
-    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kampopsætning'}];
+    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kampopsætning'},{id:'konto',label:'Min konto'}];
     if(STATE.tab === 'admin') STATE.tab = 'drills';
   }
 
