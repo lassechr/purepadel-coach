@@ -1057,56 +1057,40 @@ window.genMatches=function(){
 
   var grpSize=STATE.baneGroups||0;
   var rounds=STATE.rounds||1;
-  var allMatches=[];
-
-  // Figure out how many players fit per round
   var playersPerRound=Math.floor(ps.length/4)*4;
   var reserveCount=ps.length-playersPerRound;
+  var allMatches=[];
 
-  if(rounds===1||reserveCount===0){
-    // Simple case - no rotation needed
-    var m=[];
-    if(grpSize>=2&&ps.length>=grpSize*4){
-      m=makePairs(ps.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(ps.slice(grpSize*4),STATE.matchMode));
+  for(var r=0;r<rounds;r++){
+    var roundPlayers, roundReserves=[];
+
+    if(reserveCount>0){
+      // Rotate reserves - pick different players each round
+      var sorted=ps.slice().sort(function(a,b){return a.id>b.id?1:-1;});
+      var startIdx=(r*reserveCount)%ps.length;
+      roundReserves=[];
+      for(var i=0;i<reserveCount;i++){
+        roundReserves.push(sorted[(startIdx+i)%ps.length]);
+      }
+      roundPlayers=ps.filter(function(p){
+        return roundReserves.indexOf(p)===-1;
+      });
     } else {
-      m=makePairs(ps.slice(),STATE.matchMode);
+      roundPlayers=shuffle(ps.slice());
     }
-    for(var i=0;i<m.length;i++)m[i].round=1;
-    allMatches=m;
-  } else {
-    // Rotate reserves between rounds
-    // Sort players so we can rotate reserves fairly
-    var shuffled=shuffle(ps.slice());
-    var totalReserveSlots=reserveCount*rounds;
 
-    // Track which players have been reserve
-    var reserveTracker={};
-    for(var i=0;i<shuffled.length;i++)reserveTracker[shuffled[i].id]=0;
-
-    for(var r=0;r<rounds;r++){
-      // Pick reserves for this round - prefer those who haven't been reserve yet
-      shuffled.sort(function(a,b){return reserveTracker[a.id]-reserveTracker[b.id];});
-      var roundReserves=shuffled.slice(0,reserveCount);
-      var roundPlayers=shuffled.slice(reserveCount);
-
-      // Mark these as having been reserve
-      for(var i=0;i<roundReserves.length;i++)reserveTracker[roundReserves[i].id]++;
-
-      // Re-shuffle playing players for variety
-      roundPlayers=shuffle(roundPlayers);
-
-      var m=[];
-      if(grpSize>=2&&roundPlayers.length>=grpSize*4){
-        m=makePairs(roundPlayers.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(roundPlayers.slice(grpSize*4),STATE.matchMode));
-      } else {
-        m=makePairs(roundPlayers,STATE.matchMode);
-      }
-      for(var i=0;i<m.length;i++){
-        m[i].round=r+1;
-        m[i].reserveIds=roundReserves.map(function(p){return p.id;});
-      }
-      allMatches=allMatches.concat(m);
+    var m=[];
+    if(grpSize>=2&&roundPlayers.length>=grpSize*4){
+      m=makePairs(roundPlayers.slice(0,grpSize*4),STATE.matchMode).concat(makePairs(roundPlayers.slice(grpSize*4),STATE.matchMode));
+    } else {
+      m=makePairs(roundPlayers,STATE.matchMode);
     }
+    var resIds=roundReserves.map(function(p){return p.id;});
+    for(var i=0;i<m.length;i++){
+      m[i].round=r+1;
+      m[i].reserveIds=resIds;
+    }
+    allMatches=allMatches.concat(m);
   }
 
   STATE.matches=allMatches;render();
