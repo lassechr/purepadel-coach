@@ -1049,8 +1049,8 @@ window.promptSaveSession=function(){
     club_id:clubId(),
     name:name,
     date:new Date().toISOString().split('T')[0],
-    player_ids:JSON.stringify(STATE.att),
-    matches:JSON.stringify(matchesWithNames),
+    player_ids:STATE.att,
+    matches:matchesWithNames,
     rounds:STATE.rounds||1
   };
   sbPost('sessions',data).then(function(){
