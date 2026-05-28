@@ -24,18 +24,19 @@ body{background:#f0f0f0;font-family:'DM Sans',sans-serif;min-height:100vh;}
 .login-err{color:#c0392b;font-size:13px;margin-top:10px;text-align:center;}
 
 /* HEADER */
-.header{background:#0a0a0a;border-bottom:3px solid #fff;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;}
-.logo{display:flex;align-items:baseline;}
+.header{background:#0a0a0a;border-bottom:3px solid #fff;padding:0 14px;height:56px;display:flex;align-items:center;justify-content:space-between;min-width:0;overflow:hidden;}
+.logo{display:flex;align-items:baseline;flex-shrink:0;}
 .logo-mark{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#fff;line-height:1;}
 .logo-coach{font-size:10px;font-weight:500;letter-spacing:3px;color:#888;text-transform:uppercase;margin-left:10px;padding-left:10px;border-left:1px solid #444;line-height:1;}
-.header-right{display:flex;align-items:center;gap:12px;}
-.header-user{font-size:12px;color:#888;}
-.header-logout{font-size:11px;color:#888;cursor:pointer;text-transform:uppercase;letter-spacing:1px;background:none;border:none;font-family:'DM Sans',sans-serif;}
+.header-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.header-user{font-size:12px;color:#888;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.header-logout{font-size:11px;color:#888;cursor:pointer;text-transform:uppercase;letter-spacing:1px;background:none;border:none;font-family:'DM Sans',sans-serif;white-space:nowrap;}
 .header-logout:hover{color:#fff;}
 
 /* TABS */
-.tabs{background:#1a1a1a;display:flex;padding:0 20px;}
-.tab{padding:12px 14px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#666;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;}
+.tabs{background:#1a1a1a;display:flex;padding:0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;white-space:nowrap;flex-wrap:nowrap;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:12px 12px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#666;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;flex-shrink:0;}
 .tab.active{color:#fff;border-bottom-color:#fff;}
 .tab:hover:not(.active){color:#aaa;}
 
@@ -137,7 +138,7 @@ var STATE = {
   drills: [], sheetDrills: [],
   players: [], allProfiles: [], sessions: [],
   fcat: 'alle',
-  modal: null, editDrill: null,
+  modal: null, editDrill: null, editPlayer: null,
   matches: [], att: [],
   matchMode: 'balanced',
   ov: null, openSession: null,
@@ -400,6 +401,7 @@ function render() {
   // Modal
   if(STATE.modal==='drill') html += rDrillModal();
   else if(STATE.modal==='add_player') html += rPlayerModal();
+  else if(STATE.modal==='edit_player') html += rEditPlayerModal();
   else if(STATE.modal==='add_user') html += rAddUserModal();
 
   app.innerHTML = html;
@@ -591,7 +593,10 @@ function rPlayers() {
     html+='<span class="ptag" style="color:'+si2.color+';background:'+si2.bg+';border-color:'+si2.border+';">'+si2.label+'</span>';
     if(p.notes) html+='<span class="ptag" style="color:#b7770d;background:#fef9e7;border-color:#f9e79f;">'+esc(p.notes)+'</span>';
     html+='</div></div>';
+    html+='<div style="display:flex;gap:6px;">';
+    html+='<button title="Rediger" style="background:none;border:1.5px solid #ddd;border-radius:6px;padding:5px 8px;cursor:pointer;color:#888;font-size:13px;line-height:1;" onclick="openEditPlayer(\''+p.id+'\')">&#9998;</button>';
     html+='<button class="btn btn-red btn-sm" onclick="delPlayer(\''+p.id+'\')">Slet</button>';
+    html+='</div>';
     html+='</div>';
   }
   return html;
@@ -864,6 +869,37 @@ function rPlayerModal(){
     +'</div></div>';
 }
 
+function rEditPlayerModal(){
+  var p=STATE.editPlayer||{};
+  var sideOpts=['hojre','venstre','begge'];
+  var sideLabels={hojre:'Højre',venstre:'Venstre',begge:'Begge sider'};
+  var lvl=p.level||3;
+  var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
+  html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:6px;">';
+  html+='<div class="modal-title">Rediger spiller</div>';
+  html+='<button class="btn btn-red btn-sm" onclick="delPlayer(\''+p.id+'\')" style="flex-shrink:0;margin-top:4px;">Slet</button>';
+  html+='</div>';
+  html+='<div class="modal-sub" style="margin-bottom:16px;">Ændringer gemmes direkte i databasen</div>';
+  html+='<div class="fg"><label class="flabel">Navn</label><input class="finput" id="epN" value="'+esc(p.name||'')+'"></div>';
+  html+='<div class="fg"><label class="flabel">Niveau</label>';
+  html+='<div style="display:flex;gap:6px;margin-top:6px;">';
+  for(var s=1;s<=5;s++){
+    html+='<button onclick="setEditLevel('+s+')" id="epStar'+s+'" style="width:36px;height:36px;border-radius:6px;border:1.5px solid '+(s<=lvl?'#f5a623':'#ddd')+';background:'+(s<=lvl?'#fffbf0':'#fff')+';font-size:18px;cursor:pointer;line-height:1;">&#9733;</button>';
+  }
+  html+='</div><input type="hidden" id="epL" value="'+lvl+'"></div>';
+  html+='<div class="fg"><label class="flabel">Foretrukken side</label><select class="finput" id="epS">';
+  for(var oi=0;oi<sideOpts.length;oi++){
+    var sv=sideOpts[oi];
+    html+='<option value="'+sv+'" '+(p.side===sv?'selected':'')+'>'+sideLabels[sv]+'</option>';
+  }
+  html+='</select></div>';
+  html+='<div class="fg"><label class="flabel">Noter</label><input class="finput" id="epO" value="'+esc(p.notes||'')+'" placeholder="Fx skade, info..."></div>';
+  html+='<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="saveEditPlayer()">Gem ændringer</button></div>';
+  html+='</div></div>';
+  return html;
+}
+
+
 function rAddUserModal(){
   return'<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">'
     +'<div class="modal-title">Opret bruger</div>'
@@ -1101,11 +1137,39 @@ window.savePlayer=function(){
   .then(function(){closeModal();loadPlayers().then(render);});
 };
 
+window.openEditPlayer=function(id){
+  for(var i=0;i<STATE.players.length;i++){
+    if(STATE.players[i].id===id){STATE.editPlayer=STATE.players[i];break;}
+  }
+  STATE.modal='edit_player';render();
+};
+
+window.setEditLevel=function(n){
+  document.getElementById('epL').value=n;
+  for(var s=1;s<=5;s++){
+    var btn=document.getElementById('epStar'+s);
+    if(!btn)continue;
+    btn.style.borderColor=s<=n?'#f5a623':'#ddd';
+    btn.style.background=s<=n?'#fffbf0':'#fff';
+  }
+};
+
+window.saveEditPlayer=function(){
+  var p=STATE.editPlayer;if(!p)return;
+  var n=(document.getElementById('epN')||{}).value||'';
+  if(!n.trim()){alert('Angiv et navn');return;}
+  var lvl=Math.min(5,Math.max(1,parseInt((document.getElementById('epL')||{}).value)||3));
+  var side=(document.getElementById('epS')||{}).value||'begge';
+  var notes=((document.getElementById('epO')||{}).value||'').trim();
+  sbPatch('players',{name:n.trim(),level:lvl,side:side,notes:notes},'id=eq.'+p.id)
+  .then(function(){closeModal();loadPlayers().then(render);});
+};
+
 window.delPlayer=function(id){
   if(!confirm('Slet spiller?'))return;
   sbDelete('players','id=eq.'+id).then(function(){
     STATE.att=STATE.att.filter(function(a){return a!==id;});
-    loadPlayers().then(render);
+    closeModal();loadPlayers().then(render);
   });
 };
 
@@ -1171,7 +1235,22 @@ window.genMatches=function(){
         }
         return res;
       }
-      m=splitPairs(top).concat(splitPairs(bot));
+      // If both halves have at least 4 players each, split within each group
+      // Otherwise pair across top vs bottom (works with just 4 players total)
+      if(top.length>=4&&bot.length>=4){
+        m=splitPairs(top).concat(splitPairs(bot));
+      } else {
+        // Pair top half vs bottom half directly
+        var combined=[];
+        var pairs=Math.min(top.length,bot.length);
+        for(var qi=0;qi+1<pairs;qi+=2){
+          var g2=[top[qi],top[qi+1],bot[qi],bot[qi+1]];
+          var ta=[g2[0],g2[1]],tb=[g2[2],g2[3]];
+          m.push({t1:[ta[0].id,ta[1].id],t2:[tb[0].id,tb[1].id]});
+        }
+        // Fallback: if we got nothing (e.g. odd halves), use balanced
+        if(!m.length) m=makePairs(grp,'balanced');
+      }
     } else {
       grp=shuffle(grp);
       for(var i=0;i<grp.length-3;i+=4){
