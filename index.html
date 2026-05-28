@@ -476,19 +476,21 @@ function rAdmin() {
       var roleBorder=p.subscription_type==='club'?'#b3cef0':'#d7bde2';
       var roleLabel=p.subscription_type==='club'?'Forening':'Træner';
 
-      html += '<div class="user-row">';
-      html += '<div class="status-dot" style="background:'+statusColor+';"></div>';
-      html += '<div style="flex:1;">';
-      html += '<div style="font-size:14px;font-weight:600;color:#111;">'+(p.name&&p.name!=='null'?p.name:p.email)+'</div>';
-      html += '<div style="font-size:12px;color:#888;margin-top:2px;">'+esc(p.email||'')+(p.club_name&&p.club_name!=='null'?' · '+esc(p.club_name):'')+'</div>';
+      html += '<div class="user-row" style="flex-direction:column;align-items:stretch;gap:6px;">';
+      html += '<div style="display:flex;align-items:center;gap:8px;">';
+      html += '<div class="status-dot" style="background:'+statusColor+';flex-shrink:0;"></div>';
+      html += '<span style="font-size:14px;font-weight:600;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(p.name&&p.name!=='null'?p.name:p.email)+'</span>';
+      html += '<span class="user-role" style="color:'+roleColor+';background:'+roleBg+';border-color:'+roleBorder+';flex-shrink:0;">'+roleLabel+'</span>';
       html += '</div>';
-      html += '<span class="user-role" style="color:'+roleColor+';background:'+roleBg+';border-color:'+roleBorder+';">'+roleLabel+'</span>';
-      html += '<div style="text-align:right;min-width:100px;">';
-      html += '<div style="font-size:12px;color:'+statusColor+';font-weight:600;">'+statusLabel+'</div>';
-      html += '<div style="font-size:11px;color:#aaa;">'+( p.subscription_expires ? formatDate(p.subscription_expires) : 'Ingen dato')+'</div>';
-      html += '</div>';
+      html += '<div style="font-size:12px;color:#888;padding-left:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.email||'')+(p.club_name&&p.club_name!=='null'?' · '+esc(p.club_name):'')+'</div>';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding-left:16px;flex-wrap:wrap;">';
+      html += '<span style="font-size:12px;color:'+statusColor+';font-weight:600;">'+statusLabel+'</span>';
+      html += '<span style="font-size:11px;color:#aaa;">'+( p.subscription_expires ? formatDate(p.subscription_expires) : 'Ingen dato')+'</span>';
+      html += '<div style="margin-left:auto;display:flex;gap:6px;">';
       html += '<button class="btn btn-light btn-sm" onclick="renewUser(\''+p.id+'\')">Forny</button>';
       html += '<button class="btn btn-red btn-sm" onclick="deleteUser(\''+p.id+'\')">Slet</button>';
+      html += '</div>';
+      html += '</div>';
       html += '</div>';
     }
   }
