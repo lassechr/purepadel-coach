@@ -1610,11 +1610,12 @@ window.addPlayerToTeam=function(sel,playerId){
   var teamId=sel.value;
   if(!teamId)return;
   sel.value='';
-  sbPost('team_members',{team_id:teamId,player_id:playerId}).then(function(){
+  sbPost('team_members',{team_id:teamId,player_id:playerId}).then(function(res){
+    if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
     if(!STATE.teamMembersCache)STATE.teamMembersCache={};
     delete STATE.teamMembersCache[teamId];
     loadTeamMembersCache().then(render);
-  });
+  }).catch(function(e){alert('Netv\u00e6rksfejl: '+e.message);});
 };
 
 window.removePlayerFromTeam=function(memberId,teamId){
@@ -1774,9 +1775,13 @@ window.deleteEvent=function(id){
 window.addTeamMember=function(teamId){
   var sel=document.getElementById('addMemberSel');
   if(!sel||!sel.value){alert('V\u00e6lg en spiller');return;}
-  sbPost('team_members',{team_id:teamId,player_id:sel.value}).then(function(){
+  sbPost('team_members',{team_id:teamId,player_id:sel.value}).then(function(res){
+    if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
+    if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+    delete STATE.teamMembersCache[teamId];
     refreshTeamMembersList(teamId);
-  });
+    loadTeamMembersCache();
+  }).catch(function(e){alert('Netv\u00e6rksfejl: '+e.message);});
 };
 
 window.removeTeamMember=function(memberId,teamId){
