@@ -128,6 +128,7 @@ body{background:#f0f0f0;font-family:'DM Sans',sans-serif;min-height:100vh;}
 var SB_URL = 'https://fhpqetgfrfhecbbzxguz.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocHFldGdmcmZoZWNiYnp4Z3V6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODM1MjUsImV4cCI6MjA5NTM1OTUyNX0.eiYZFR7cZEs2y7SM_82MvkJyA-afZ9N26COoBCGioAk';
 var SHEET_ID = '1QE-NBCS7OIlBzYYtr9vv1W5Qd4MNfuIJd6wdjG9AM04';
+var VAPID_PUBLIC_KEY = 'BPhTWh2e3suh14Oe-C-kmVyn85ZLCVAX6GWPg9X2exNneL4RtwXKBH5kxhO8UFNqES3RDMBYdddax3t5I7DKvLA';
 
 var CATS=[
   {id:'forsvar',label:'Forsvar',color:'#1d6fb5',bg:'#e8f0fb',border:'#b3cef0'},
@@ -265,6 +266,8 @@ function loadProfile() {
           STATE.tab=saved||STATE.tab;
         }
       }catch(e){}
+      // Request push permission and subscribe
+      setTimeout(subscribeToPush, 2000);
       sbPatch('profiles', {last_seen: new Date().toISOString()}, 'id=eq.'+STATE.session.user.id);
     }
   });
@@ -787,8 +790,20 @@ function rPlayers() {
 
   if(STATE.players.length===0){return html+'<div class="empty">Ingen spillere endnu</div>';}
 
-  for(var pi=0;pi<STATE.players.length;pi++){
-    var p=STATE.players[pi];var ac=acolor(p.id);var si2=sideInfo(p.side);
+  // Deduplicate by profile_id - keep latest entry per profile
+  var seenProfiles={};
+  var uniquePlayers=[];
+  for(var di=0;di<STATE.players.length;di++){
+    var dp=STATE.players[di];
+    if(dp.profile_id){
+      if(!seenProfiles[dp.profile_id]){seenProfiles[dp.profile_id]=true;uniquePlayers.push(dp);}
+    } else {
+      uniquePlayers.push(dp);
+    }
+  }
+
+  for(var pi=0;pi<uniquePlayers.length;pi++){
+    var p=uniquePlayers[pi];var ac=acolor(p.id);var si2=sideInfo(p.side);
     var canManage=(role==='club_admin'||role==='superadmin');
     // Find which teams this player is on
     var playerTeamIds=[];
@@ -1309,16 +1324,17 @@ window.playerSideWarn=function(player, other){
   return player.side===other.side;
 }
 
-function getPlayerName(id){
-  for(var i=0;i<STATE.players.length;i++)if(STATE.players[i].id===id)return STATE.players[i].name;
-  return id||'?';
-}
-
-
 // ── HELPERS ──────────────────────────────────────────────────
 function getPlayerName(id){
-  for(var i=0;i<STATE.players.length;i++)if(STATE.players[i].id===id)return STATE.players[i].name||'Ukendt';
-  return 'Ukendt spiller';
+  // id is profiles.id - look up via profile_id on players
+  for(var i=0;i<STATE.players.length;i++){
+    if(STATE.players[i].profile_id===id)return STATE.players[i].name||'Ukendt';
+  }
+  // fallback: check allProfiles
+  for(var j=0;j<STATE.allProfiles.length;j++){
+    if(STATE.allProfiles[j].id===id)return STATE.allProfiles[j].name||STATE.allProfiles[j].email||'Ukendt';
+  }
+  return 'Ukendt';
 }
 function localDT(iso){
   if(!iso)return'';
@@ -2061,7 +2077,7 @@ function rPlayerApp(){
 
   if(!myTeams.length){
     html+='<div style="text-align:center;padding:40px 20px;color:#aaa;">';
-    html+='<div style="font-size:40px;margin-bottom:12px;">&#127951;</div>';
+    html+='<div style="font-size:40px;margin-bottom:12px;">🎾</div>';
     html+='<div style="font-size:16px;font-weight:600;color:#111;margin-bottom:8px;">Ingen hold endnu</div>';
     html+='<div style="font-size:13px;">Du er ikke tilknyttet et hold. Kontakt din tr&#230;ner.</div>';
     html+='</div>';
@@ -2240,6 +2256,61 @@ function loadPlayerData(){
   }).catch(function(){STATE.playerTeams=[];STATE.playerEvents=[];STATE.playerResponses=[];});
 }
 
+
+
+// ── PUSH NOTIFICATIONS ────────────────────────────────────────
+function urlBase64ToUint8Array(base64String){
+  var padding='='.repeat((4-base64String.length%4)%4);
+  var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  var rawData=atob(base64);
+  var outputArray=new Uint8Array(rawData.length);
+  for(var i=0;i<rawData.length;i++){outputArray[i]=rawData.charCodeAt(i);}
+  return outputArray;
+}
+
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window))return Promise.resolve(null);
+  return navigator.serviceWorker.register('/service-worker.js').then(function(reg){
+    console.log('SW registered');
+    return reg;
+  }).catch(function(e){console.log('SW error:',e);return null;});
+}
+
+function subscribeToPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+  if(!STATE.session||!STATE.profile)return;
+  navigator.serviceWorker.ready.then(function(reg){
+    reg.pushManager.getSubscription().then(function(existing){
+      if(existing){
+        saveSubscription(existing);
+        return;
+      }
+      reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      }).then(function(sub){
+        saveSubscription(sub);
+      }).catch(function(e){console.log('Push subscribe error:',e);});
+    });
+  });
+}
+
+function saveSubscription(sub){
+  var pid=STATE.profile.id;
+  var subJson=JSON.stringify(sub.toJSON());
+  sbGet('push_subscriptions','player_id=eq.'+pid).then(function(data){
+    if(Array.isArray(data)&&data.length){
+      sbPatch('push_subscriptions',{subscription:subJson},'player_id=eq.'+pid);
+    } else {
+      sbPost('push_subscriptions',{player_id:pid,subscription:subJson});
+    }
+  });
+}
+
+// Register SW on load
+if('serviceWorker' in navigator){
+  registerServiceWorker();
+}
 
 window.doLogin=function(){
   var email=(document.getElementById('loginEmail')||{}).value||'';
@@ -2554,27 +2625,38 @@ window.editUser=function(id){
 };
 
 window.approvePlayer=function(id){
-  // Find the profile being approved
   var prof=null;
   for(var i=0;i<STATE.allProfiles.length;i++){
     if(STATE.allProfiles[i].id===id){prof=STATE.allProfiles[i];break;}
   }
   sbPatch('profiles',{status:'active'},'id=eq.'+id).then(function(){
-    // Try to link to existing players entry by name+club_id
     if(prof){
-      sbGet('players','club_id=eq.'+prof.club_id+'&name=eq.'+encodeURIComponent(prof.name)+'&profile_id=is.null').then(function(data){
-        if(Array.isArray(data)&&data.length){
-          // Link existing player to this profile
-          sbPatch('players',{profile_id:id},'id=eq.'+data[0].id);
+      // Check if a players entry already exists with this profile_id (from registration)
+      sbGet('players','profile_id=eq.'+id).then(function(existing){
+        if(Array.isArray(existing)&&existing.length){
+          // Already exists - just make sure club_id is correct
+          sbPatch('players',{club_id:prof.club_id},'profile_id=eq.'+id);
         } else {
-          // Create new players entry if none exists
+          // No players entry yet - create one
           sbPost('players',{club_id:prof.club_id,name:prof.name,level:3,side:'begge',notes:'',profile_id:id});
         }
       });
+      sendPushToPlayer(id,'Din konto er godkendt!','Du kan nu logge ind og se dine tr\u00e6ninger og kampe.');
     }
     loadAllProfiles().then(render);
   });
 };
+
+function sendPushToPlayer(profileId, title, body){
+  // Call Supabase Edge Function
+  var tok=STATE.session?STATE.session.access_token:null;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST', SB_URL+'/functions/v1/send-push', true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Authorization','Bearer '+tok);
+  xhr.setRequestHeader('apikey', SB_KEY);
+  xhr.send(JSON.stringify({player_id:profileId,title:title,body:body}));
+}
 
 window.rejectPlayer=function(id){
   if(!confirm('Afvis spiller?'))return;
