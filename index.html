@@ -258,6 +258,13 @@ function loadProfile() {
       } else {
         STATE.tab = 'drills';
       }
+      // Restore last active tab if available
+      try{
+        var saved=localStorage.getItem('pp_tab');
+        if(saved&&saved!=='admin'||STATE.profile.role==='superadmin'){
+          STATE.tab=saved||STATE.tab;
+        }
+      }catch(e){}
       sbPatch('profiles', {last_seen: new Date().toISOString()}, 'id=eq.'+STATE.session.user.id);
     }
   });
@@ -2247,6 +2254,7 @@ window.doLogin=function(){
 window.doLogout=function(){logout();};
 window.setTab=function(t){
   STATE.tab=t;STATE.ov=null;
+  try{localStorage.setItem('pp_tab',t);}catch(e){}
   if(t==='historik'){
     loadSessions().then(render);
   } else {
