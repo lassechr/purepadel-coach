@@ -462,6 +462,7 @@ function render() {
   else if(STATE.modal==='add_user') html += rAddUserModal();
   else if(STATE.modal==='edit_team') html += rTeamModal();
   else if(STATE.modal==='edit_event') html += rEventModal();
+  else if(STATE.modal==='edit_user') html += rEditUserModal();
 
   app.innerHTML = html;
 }
@@ -539,6 +540,7 @@ function rAdmin() {
       html += '<span style="font-size:12px;color:'+statusColor+';font-weight:600;">'+statusLabel+'</span>';
       html += '<span style="font-size:11px;color:#aaa;">'+( p.subscription_expires ? formatDate(p.subscription_expires) : 'Ingen dato')+'</span>';
       html += '<div style="margin-left:auto;display:flex;gap:6px;">';
+      html += '<button class="btn btn-light btn-sm" onclick="editUser(\''+p.id+'\')">&#9881;</button>';
       html += '<button class="btn btn-light btn-sm" onclick="renewUser(\''+p.id+'\')">Forny</button>';
       html += '<button class="btn btn-red btn-sm" onclick="deleteUser(\''+p.id+'\')">Slet</button>';
       html += '</div>';
@@ -1676,7 +1678,7 @@ window.openModal=function(m){
   if(m==='edit_event') STATE.editEvent=null;
   STATE.modal=m;render();
 };
-window.closeModal=function(){STATE.modal=null;STATE.editDrill=null;STATE.editTeam=null;STATE.editEvent=null;STATE.mvids=[];render();};
+window.closeModal=function(){STATE.modal=null;STATE.editDrill=null;STATE.editTeam=null;STATE.editEvent=null;STATE.editUserProfile=null;STATE.mvids=[];render();};
 window.openAdd=function(){STATE.editDrill=null;STATE.mvids=[];STATE.modal='drill';render();};
 window.toggleVid=function(id){STATE.ov=STATE.ov===id?null:id;render();};
 window.togAtt=function(id){var i=STATE.att.indexOf(id);if(i>-1)STATE.att.splice(i,1);else STATE.att.push(id);render();};
@@ -1912,6 +1914,60 @@ window.doImp=function(){
 };
 
 window.clrImp=function(){STATE.irows=[];render();setTimeout(function(){var el=document.getElementById('ppPaste');if(el)el.value='';},0);};
+
+function rEditUserModal(){
+  var p=STATE.editUserProfile||{};
+  var isClub=p.subscription_type==='club';
+  var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
+  html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:6px;">';
+  html+='<div class="modal-title">Rediger bruger</div>';
+  html+='<button class="btn btn-red btn-sm" onclick="deleteUser(\''+p.id+'\')" style="flex-shrink:0;margin-top:4px;">Slet</button>';
+  html+='</div>';
+  html+='<div class="modal-sub" style="margin-bottom:16px;">'+esc(p.email||'')+'</div>';
+  html+='<div class="fg"><label class="flabel">Navn</label><input class="finput" id="euN" value="'+esc(p.name&&p.name!=='null'?p.name:'')+'"></div>';
+  html+='<div class="fg"><label class="flabel">Foreningsnavn</label><input class="finput" id="euCN" value="'+esc(p.club_name&&p.club_name!=='null'?p.club_name:'')+'" placeholder="fx Padel Nord"></div>';
+  html+='<div class="frow">';
+  html+='<div><label class="flabel">Type</label><select class="finput" id="euT">';
+  html+='<option value="trainer"'+(isClub?'':' selected')+'>Træner</option>';
+  html+='<option value="club"'+(isClub?' selected':'')+'>Forening</option>';
+  html+='</select></div>';
+  html+='<div><label class="flabel">Abonnement udløber</label>';
+  html+='<input class="finput" id="euExp" type="date" value="'+(p.subscription_expires?p.subscription_expires.substring(0,10):'')+'"></div>';
+  html+='</div>';
+  html+='<div class="modal-actions">';
+  html+='<button class="btn btn-light" onclick="closeModal()">Annuller</button>';
+  html+='<button class="btn btn-dark" onclick="saveEditUser()">Gem ændringer</button>';
+  html+='</div>';
+  html+='</div></div>';
+  return html;
+}
+
+window.editUser=function(id){
+  for(var i=0;i<STATE.allProfiles.length;i++){
+    if(STATE.allProfiles[i].id===id){STATE.editUserProfile=STATE.allProfiles[i];break;}
+  }
+  STATE.modal='edit_user';render();
+};
+
+window.saveEditUser=function(){
+  var p=STATE.editUserProfile;if(!p)return;
+  var name=(document.getElementById('euN')||{}).value||'';
+  var clubName=(document.getElementById('euCN')||{}).value||'';
+  var type=(document.getElementById('euT')||{}).value||'trainer';
+  var exp=(document.getElementById('euExp')||{}).value||null;
+  var role=type==='club'?'club_admin':'trainer';
+  var data={
+    name:name.trim()||null,
+    club_name:clubName.trim()||null,
+    subscription_type:type,
+    role:role,
+    subscription_expires:exp?exp+'T00:00:00Z':null
+  };
+  sbPatch('profiles',data,'id=eq.'+p.id).then(function(){
+    closeModal();
+    loadAllProfiles().then(render);
+  });
+};
 
 window.createUser=function(){
   var name=(document.getElementById('uN')||{}).value||'';
