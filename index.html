@@ -290,7 +290,10 @@ function loadSessions(){
 }
 
 function loadTeams(){
-  return sbGet('teams','club_id=eq.'+clubId()+'&order=name').then(function(data){
+  var q=STATE.profile&&STATE.profile.role==='superadmin'
+    ?'order=name'
+    :'club_id=eq.'+clubId()+'&order=name';
+  return sbGet('teams',q).then(function(data){
     if(Array.isArray(data))STATE.teams=data;
   });
 }
@@ -1101,11 +1104,14 @@ function localDT(iso){
 // ── HOLD (TEAMS + EVENTS) ────────────────────────────────────
 function rHold(){
   var teams=STATE.teams;
+  var role=STATE.profile?STATE.profile.role:'';
+  var canManageTeams=(role==='superadmin'||role==='club_admin');
   var html='<div class="sec-head"><div class="sec-title">Hold &amp; Tr&#230;ninger</div>';
-  html+='<button class="btn btn-dark btn-sm" onclick="openModal(\'edit_team\')">+ Nyt hold</button></div>';
+  if(canManageTeams)html+='<button class="btn btn-dark btn-sm" onclick="openModal(\'edit_team\')">+ Nyt hold</button>';
+  html+='</div>';
 
   if(!teams.length){
-    html+='<div class="empty">Ingen hold endnu &#8211; opret det f&#248;rste hold</div>';
+    html+='<div class="empty">Ingen hold endnu'+(canManageTeams?' &#8211; opret det f&#248;rste hold':'')+'</div>';
     return html;
   }
 
@@ -1136,7 +1142,7 @@ function rHold(){
     html+='</div>';
     html+='<div style="display:flex;gap:6px;">';
     html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Begivenhed</button>';
-    html+='<button class="btn btn-light btn-sm" onclick="editTeam(\''+team.id+'\')">&#9881;</button>';
+    if(canManageTeams)html+='<button class="btn btn-light btn-sm" onclick="editTeam(\''+team.id+'\')">&#9881;</button>';
     html+='</div></div>';
 
     if(!teamEvents.length){
@@ -1243,6 +1249,7 @@ function rEventDetail(ev,responses){
 function rTeamModal(){
   var ed=STATE.editTeam;
   var isEdit=!!(ed&&ed.id);
+  var isSuperadmin=STATE.profile&&STATE.profile.role==='superadmin';
   var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
   html+='<div class="modal-title">'+(isEdit?'Rediger hold':'Nyt hold')+'</div>';
   html+='<div class="modal-sub">Hold bruges til at organisere tr&#230;ninger og kampe</div>';
@@ -1252,6 +1259,19 @@ function rTeamModal(){
   html+='<option value="dame"'+(isEdit&&ed.type==='dame'?' selected':'')+'>Damehold</option>';
   html+='<option value="mix"'+(isEdit&&ed.type==='mix'?' selected':'')+'>Mixhold</option>';
   html+='</select></div>';
+
+  // Superadmin: pick which club this team belongs to
+  if(isSuperadmin){
+    var clubs=STATE.allProfiles.filter(function(p){return p.role==='club_admin';});
+    html+='<div class="fg"><label class="flabel">Forening</label><select class="finput" id="tmClub">';
+    html+='<option value="">V&#230;lg forening...</option>';
+    for(var ci=0;ci<clubs.length;ci++){
+      var c=clubs[ci];
+      var selected=isEdit&&ed.club_id===c.id?' selected':'';
+      html+='<option value="'+c.id+'"'+selected+'>'+esc(c.club_name||c.name||c.email)+'</option>';
+    }
+    html+='</select></div>';
+  }
 
   if(isEdit){
     html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
@@ -1358,10 +1378,18 @@ window.setEvType=function(type){
 };
 
 window.saveTeam=function(){
+  var role=STATE.profile?STATE.profile.role:'';
+  if(role!=='superadmin'&&role!=='club_admin'){alert('Ingen adgang');return;}
   var name=(document.getElementById('tmN')||{}).value||'';
   if(!name.trim()){alert('Angiv et holdnavn');return;}
-  var type=document.getElementById('tmT').value;
-  var data={club_id:clubId(),name:name.trim(),type:type};
+  var type=(document.getElementById('tmT')||{}).value||'herre';
+  var cid=clubId();
+  if(role==='superadmin'){
+    var clubSel=document.getElementById('tmClub');
+    if(clubSel&&clubSel.value){cid=clubSel.value;}
+    else if(!STATE.editTeam){alert('V\u00e6lg en forening');return;}
+  }
+  var data={club_id:cid,name:name.trim(),type:type};
   var ed=STATE.editTeam;
   var p=ed&&ed.id?sbPatch('teams',data,'id=eq.'+ed.id):sbPost('teams',data);
   p.then(function(){
@@ -1371,6 +1399,8 @@ window.saveTeam=function(){
 };
 
 window.deleteTeam=function(id){
+  var role=STATE.profile?STATE.profile.role:'';
+  if(role!=='superadmin'&&role!=='club_admin'){alert('Ingen adgang');return;}
   if(!confirm('Slet hold? Alle begivenheder p\u00e5 holdet slettes ogs\u00e5.'))return;
   sbDelete('teams','id=eq.'+id).then(function(){
     closeModal();
@@ -1532,8 +1562,12 @@ window.setTab=function(t){
   }
 };
 window.setFcat=function(f){STATE.fcat=f;render();};
-window.openModal=function(m){STATE.modal=m;render();};
-window.closeModal=function(){STATE.modal=null;STATE.editDrill=null;STATE.mvids=[];render();};
+window.openModal=function(m){
+  if(m==='edit_team') STATE.editTeam=null;
+  if(m==='edit_event') STATE.editEvent=null;
+  STATE.modal=m;render();
+};
+window.closeModal=function(){STATE.modal=null;STATE.editDrill=null;STATE.editTeam=null;STATE.editEvent=null;STATE.mvids=[];render();};
 window.openAdd=function(){STATE.editDrill=null;STATE.mvids=[];STATE.modal='drill';render();};
 window.toggleVid=function(id){STATE.ov=STATE.ov===id?null:id;render();};
 window.togAtt=function(id){var i=STATE.att.indexOf(id);if(i>-1)STATE.att.splice(i,1);else STATE.att.push(id);render();};
