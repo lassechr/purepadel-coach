@@ -1397,16 +1397,21 @@ window.saveTeam=function(){
   var cid=clubId();
   if(role==='superadmin'){
     var clubSel=document.getElementById('tmClub');
-    if(clubSel&&clubSel.value){cid=clubSel.value;}
-    else if(!STATE.editTeam){alert('V\u00e6lg en forening');return;}
+    if(clubSel&&clubSel.value){
+      cid=clubSel.value;
+    } else if(!STATE.editTeam){
+      alert(!STATE.allProfiles.length?'Ingen foreninger fundet – prøv at genindlæse siden':'Vælg en forening');
+      return;
+    }
   }
   var data={club_id:cid,name:name.trim(),type:type};
   var ed=STATE.editTeam;
   var p=ed&&ed.id?sbPatch('teams',data,'id=eq.'+ed.id):sbPost('teams',data);
-  p.then(function(){
+  p.then(function(res){
+    if(res&&res.code){alert('Supabase fejl: '+(res.message||res.code));return;}
     closeModal();
     loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(render);
-  });
+  }).catch(function(err){alert('Netværksfejl: '+err.message);});
 };
 
 window.deleteTeam=function(id){
