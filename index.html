@@ -390,7 +390,8 @@ function loadAll() {
   }).then(function(){
     return loadEventResponses();
   }).then(function(){
-    // Load club profile for logo (for trainers linked to a club)
+    return loadTeamMembersCache();
+  }).then(function(){
     var cid=STATE.profile&&STATE.profile.club_id;
     if(cid&&STATE.profile.role==='trainer'){
       return sbGet('profiles','id=eq.'+cid).then(function(data){
@@ -781,15 +782,62 @@ function rPlayers() {
 
   for(var pi=0;pi<STATE.players.length;pi++){
     var p=STATE.players[pi];var ac=acolor(p.id);var si2=sideInfo(p.side);
+    var canManage=(role==='club_admin'||role==='superadmin');
+    // Find which teams this player is on
+    var playerTeamIds=[];
+    if(STATE.teamMembersCache){
+      for(var tk in STATE.teamMembersCache){
+        var tms=STATE.teamMembersCache[tk];
+        for(var tmi=0;tmi<tms.length;tmi++){
+          if(tms[tmi].player_id===p.id){playerTeamIds.push({teamId:tk,memberId:tms[tmi].id});break;}
+        }
+      }
+    }
     html+='<div class="card pcard">';
     html+='<div class="avatar" style="color:'+ac.color+';background:'+ac.bg+';border-color:'+ac.border+';">'+initials(p.name)+'</div>';
-    html+='<div style="flex:1;">';
+    html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:600;color:#111;">'+esc(p.name)+'</div>';
     html+='<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center;">'+stars(p.level);
     html+='<span class="ptag" style="color:'+si2.color+';background:'+si2.bg+';border-color:'+si2.border+';">'+si2.label+'</span>';
     if(p.notes) html+='<span class="ptag" style="color:#b7770d;background:#fef9e7;border-color:#f9e79f;">'+esc(p.notes)+'</span>';
-    html+='</div></div>';
-    html+='<div style="display:flex;gap:6px;">';
+    html+='</div>';
+    // Team membership for club_admin and superadmin
+    if(canManage){
+      html+='<div style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+      // Show current teams
+      var teamNames=[];
+      for(var tki=0;tki<playerTeamIds.length;tki++){
+        for(var ti2=0;ti2<STATE.teams.length;ti2++){
+          if(STATE.teams[ti2].id===playerTeamIds[tki].teamId){
+            teamNames.push({name:STATE.teams[ti2].name,memberId:playerTeamIds[tki].memberId,teamId:playerTeamIds[tki].teamId});
+            break;
+          }
+        }
+      }
+      if(teamNames.length){
+        for(var ni=0;ni<teamNames.length;ni++){
+          html+='<span style="font-size:11px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;">';
+          html+=esc(teamNames[ni].name);
+          html+='<span onclick="removePlayerFromTeam(\''+teamNames[ni].memberId+'\',\''+teamNames[ni].teamId+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
+          html+='</span>';
+        }
+      }
+      // Add to team dropdown
+      var availTeams=STATE.teams.filter(function(t){
+        return !playerTeamIds.some(function(pt){return pt.teamId===t.id;});
+      });
+      if(availTeams.length){
+        html+='<select onchange="addPlayerToTeam(this,\''+p.id+'\')" style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:2px 6px;color:#888;background:#fff;cursor:pointer;">';
+        html+='<option value="">+ Tilf\u00f8j til hold</option>';
+        for(var ai=0;ai<availTeams.length;ai++){
+          html+='<option value="'+availTeams[ai].id+'">'+esc(availTeams[ai].name)+'</option>';
+        }
+        html+='</select>';
+      }
+      html+='</div>';
+    }
+    html+='</div>';
+    html+='<div style="display:flex;gap:6px;flex-shrink:0;">';
     html+='<button title="Rediger" style="background:none;border:1.5px solid #ddd;border-radius:6px;padding:5px 8px;cursor:pointer;color:#888;font-size:13px;line-height:1;" onclick="openEditPlayer(\''+p.id+'\')">&#9998;</button>';
     html+='<button class="btn btn-red btn-sm" onclick="delPlayer(\''+p.id+'\')">Slet</button>';
     html+='</div>';
@@ -1558,6 +1606,39 @@ function rEventModal(){
 }
 
 // ── HOLD ACTIONS ─────────────────────────────────────────────
+window.addPlayerToTeam=function(sel,playerId){
+  var teamId=sel.value;
+  if(!teamId)return;
+  sel.value='';
+  sbPost('team_members',{team_id:teamId,player_id:playerId}).then(function(){
+    if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+    delete STATE.teamMembersCache[teamId];
+    loadTeamMembersCache().then(render);
+  });
+};
+
+window.removePlayerFromTeam=function(memberId,teamId){
+  sbDelete('team_members','id=eq.'+memberId).then(function(){
+    if(STATE.teamMembersCache)delete STATE.teamMembersCache[teamId];
+    loadTeamMembersCache().then(render);
+  });
+};
+
+function loadTeamMembersCache(){
+  if(!STATE.teams.length)return Promise.resolve();
+  if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+  var teamIds=STATE.teams.map(function(t){return t.id;});
+  return sbGet('team_members','team_id=in.('+teamIds.join(',')+')').then(function(data){
+    STATE.teamMembersCache={};
+    if(!Array.isArray(data))return;
+    for(var i=0;i<data.length;i++){
+      var m=data[i];
+      if(!STATE.teamMembersCache[m.team_id])STATE.teamMembersCache[m.team_id]=[];
+      STATE.teamMembersCache[m.team_id].push(m);
+    }
+  }).catch(function(){});
+}
+
 window.toggleTeam=function(id){
   STATE.openTeam=STATE.openTeam===id?null:id;
   // Clear cache for this team so it reloads fresh
