@@ -507,7 +507,7 @@ function rLogin() {
   if(showReg){
     if(STATE.visibleClubs===null||STATE.visibleClubs===undefined){
       STATE.visibleClubs=null;
-      sbGet('profiles','role=eq.club_admin&visible=eq.true&order=club_name').then(function(data){
+      sbGet('profiles','role=eq.club_admin&visible=eq.true&visible=not.is.null&order=club_name').then(function(data){
         STATE.visibleClubs=Array.isArray(data)?data:[];
         render();
       });
@@ -590,9 +590,10 @@ function rAdmin() {
     html+='<span style="font-size:13px;">'+esc(cp.club_name||cp.name||cp.email)+'</span>';
     html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
     html+='<input type="checkbox" '+(vis?'checked':'')+' onchange="toggleClubVisible(\''+cp.id+'\',this.checked)" style="width:16px;height:16px;cursor:pointer;">';
-    html+='<span style="font-size:12px;color:#888;">'+(vis?'Synlig':'Skjult')+'</span>';
+    html+='<span style="font-size:12px;color:'+(vis?'#1e8449':'#aaa')+';font-weight:600;">'+(vis?'&#10003; Synlig for spillere':'Skjult for spillere')+'</span>';
     html+='</label></div>';
   }
+  html+='<div style="font-size:11px;color:#aaa;margin-top:8px;">Kun foreninger markeret som synlige vises i spiller-registreringen</div>';
   html+='</div>';
 
   // User list
