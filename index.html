@@ -914,13 +914,37 @@ function rDrillModal(){
   html+='</div></div>';
   return html;
 }
+function rClubField(selectedId){
+  var role=STATE.profile?STATE.profile.role:'';
+  var html='<div class="fg"><label class="flabel">Forening</label>';
+  if(role==='superadmin'){
+    var clubs=STATE.allProfiles.filter(function(p){return p.role==='club_admin';});
+    html+='<select class="finput" id="pClub">';
+    html+='<option value="">V&#230;lg forening...</option>';
+    for(var i=0;i<clubs.length;i++){
+      var c=clubs[i];
+      html+='<option value="'+c.id+'"'+(selectedId===c.id?' selected':'')+'>'+esc(c.club_name||c.name||c.email)+'</option>';
+    }
+    html+='</select>';
+  } else {
+    // club_admin: vis eget foreningsnavn, gem som hidden
+    var clubName=STATE.profile.club_name||STATE.profile.name||STATE.profile.email||'';
+    html+='<div class="finput" style="background:#f5f5f5;color:#888;cursor:default;">'+esc(clubName)+'</div>';
+    html+='<input type="hidden" id="pClub" value="'+clubId()+'">';
+  }
+  html+='</div>';
+  return html;
+}
+
 function rPlayerModal(){
+  var role=STATE.profile?STATE.profile.role:'';
   return'<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">'
-    +'<div class="modal-title">Tilføj spiller</div>'
-    +'<div class="modal-sub">Gemmes i databasen – synlig på alle enheder</div>'
+    +'<div class="modal-title">Tilf\u00f8j spiller</div>'
+    +'<div class="modal-sub">Gemmes i databasen \u2013 synlig p\u00e5 alle enheder</div>'
+    +rClubField('')
     +'<div class="fg"><label class="flabel">Fulde navn</label><input class="finput" id="pN" placeholder="Fornavn Efternavn"></div>'
     +'<div class="fg"><label class="flabel">Niveau (1-5)</label><input class="finput" id="pL" type="number" min="1" max="5" value="3"></div>'
-    +'<div class="fg"><label class="flabel">Foretrukken side</label><select class="finput" id="pS"><option value="hojre">Højre</option><option value="venstre">Venstre</option><option value="begge">Begge sider</option></select></div>'
+    +'<div class="fg"><label class="flabel">Foretrukken side</label><select class="finput" id="pS"><option value="hojre">H\u00f8jre</option><option value="venstre">Venstre</option><option value="begge">Begge sider</option></select></div>'
     +'<div class="fg"><label class="flabel">Noter</label><input class="finput" id="pO" placeholder="Fx skade, info..."></div>'
     +'<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="savePlayer()">Gem spiller</button></div>'
     +'</div></div>';
@@ -929,14 +953,15 @@ function rPlayerModal(){
 function rEditPlayerModal(){
   var p=STATE.editPlayer||{};
   var sideOpts=['hojre','venstre','begge'];
-  var sideLabels={hojre:'Højre',venstre:'Venstre',begge:'Begge sider'};
+  var sideLabels={hojre:'H\u00f8jre',venstre:'Venstre',begge:'Begge sider'};
   var lvl=p.level||3;
   var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
   html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:6px;">';
   html+='<div class="modal-title">Rediger spiller</div>';
   html+='<button class="btn btn-red btn-sm" onclick="delPlayer(\''+p.id+'\')" style="flex-shrink:0;margin-top:4px;">Slet</button>';
   html+='</div>';
-  html+='<div class="modal-sub" style="margin-bottom:16px;">Ændringer gemmes direkte i databasen</div>';
+  html+='<div class="modal-sub" style="margin-bottom:16px;">\u00c6ndringer gemmes direkte i databasen</div>';
+  html+=rClubField(p.club_id||'');
   html+='<div class="fg"><label class="flabel">Navn</label><input class="finput" id="epN" value="'+esc(p.name||'')+'"></div>';
   html+='<div class="fg"><label class="flabel">Niveau</label>';
   html+='<div style="display:flex;gap:6px;margin-top:6px;">';
@@ -951,7 +976,7 @@ function rEditPlayerModal(){
   }
   html+='</select></div>';
   html+='<div class="fg"><label class="flabel">Noter</label><input class="finput" id="epO" value="'+esc(p.notes||'')+'" placeholder="Fx skade, info..."></div>';
-  html+='<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="saveEditPlayer()">Gem ændringer</button></div>';
+  html+='<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="saveEditPlayer()">Gem \u00e6ndringer</button></div>';
   html+='</div></div>';
   return html;
 }
@@ -1635,7 +1660,9 @@ window.delDrill=function(id){
 window.savePlayer=function(){
   var n=(document.getElementById('pN')||{}).value||'';
   if(!n.trim()){alert('Angiv et navn');return;}
-  sbPost('players',{club_id:clubId(),name:n.trim(),level:Math.min(5,Math.max(1,parseInt(document.getElementById('pL').value)||3)),side:document.getElementById('pS').value,notes:(document.getElementById('pO').value||'').trim()})
+  var cid=(document.getElementById('pClub')||{}).value||clubId();
+  if(!cid){alert('V\u00e6lg en forening');return;}
+  sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt(document.getElementById('pL').value)||3)),side:document.getElementById('pS').value,notes:(document.getElementById('pO').value||'').trim()})
   .then(function(){closeModal();loadPlayers().then(render);});
 };
 
@@ -1663,7 +1690,8 @@ window.saveEditPlayer=function(){
   var lvl=Math.min(5,Math.max(1,parseInt((document.getElementById('epL')||{}).value)||3));
   var side=(document.getElementById('epS')||{}).value||'begge';
   var notes=((document.getElementById('epO')||{}).value||'').trim();
-  sbPatch('players',{name:n.trim(),level:lvl,side:side,notes:notes},'id=eq.'+p.id)
+  var cid=(document.getElementById('pClub')||{}).value||p.club_id||clubId();
+  sbPatch('players',{name:n.trim(),level:lvl,side:side,notes:notes,club_id:cid},'id=eq.'+p.id)
   .then(function(){closeModal();loadPlayers().then(render);});
 };
 
