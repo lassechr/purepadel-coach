@@ -250,6 +250,7 @@ function loadProfile() {
 function clubId() {
   if(!STATE.profile) return 'purepadel';
   if(STATE.profile.role === 'superadmin') return STATE.profile.club_id || 'purepadel';
+  if(STATE.profile.role === 'club_admin') return STATE.profile.id;
   return STATE.profile.club_id || 'purepadel';
 }
 
@@ -290,14 +291,9 @@ function loadSessions(){
 }
 
 function loadTeams(){
-  var q;
-  if(STATE.profile&&STATE.profile.role==='superadmin'){
-    q='order=name';
-  } else {
-    // club_admin bruger eget id som club_id
-    var cid=STATE.profile&&STATE.profile.role==='club_admin'?STATE.profile.id:clubId();
-    q='club_id=eq.'+cid+'&order=name';
-  }
+  var q=STATE.profile&&STATE.profile.role==='superadmin'
+    ?'order=name'
+    :'club_id=eq.'+clubId()+'&order=name';
   return sbGet('teams',q).then(function(data){
     if(Array.isArray(data))STATE.teams=data;
   }).catch(function(){});
@@ -1411,7 +1407,7 @@ window.saveTeam=function(){
       cid=STATE.editTeam.club_id;
     }
   } else {
-    cid=STATE.profile.id;
+    cid=clubId();
   }
   var data={club_id:cid,name:name.trim(),type:type};
   var ed=STATE.editTeam;
