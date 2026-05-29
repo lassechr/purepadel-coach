@@ -1405,33 +1405,36 @@ window.saveTeam=function(){
     if(clubSel&&clubSel.value){
       cid=clubSel.value;
     } else if(!STATE.editTeam){
-      alert(!STATE.allProfiles.length?'Ingen foreninger fundet – prøv at genindlæse siden':'Vælg en forening');
+      alert(!STATE.allProfiles.length?'Ingen foreninger fundet – genindlæs siden':'Vælg en forening');
       return;
     } else {
       cid=STATE.editTeam.club_id;
     }
   } else {
-    // club_admin: brug eget profile.id som club_id
     cid=STATE.profile.id;
   }
   var data={club_id:cid,name:name.trim(),type:type};
-  alert('DEBUG: sender\ncid='+cid+'\nnavn='+name+'\nrole='+role);
   var ed=STATE.editTeam;
   var p=ed&&ed.id?sbPatch('teams',data,'id=eq.'+ed.id):sbPost('teams',data);
   p.then(function(res){
-    alert('DEBUG svar: '+JSON.stringify(res).substring(0,300));
-    if(res&&res.code){alert('Supabase fejl: '+(res.message||res.code));return;}
+    if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
+    STATE.editTeam=null;
     closeModal();
-    loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(render);
+    loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(function(){render();});
   }).catch(function(err){alert('Netværksfejl: '+err.message);});
 };
 
 window.deleteTeam=function(id){
   var role=STATE.profile?STATE.profile.role:'';
   if(role!=='superadmin'&&role!=='club_admin'){alert('Ingen adgang');return;}
-  if(!confirm('Slet hold? Alle begivenheder p\u00e5 holdet slettes ogs\u00e5.'))return;
+  if(!confirm('Slet hold? Alle begivenheder på holdet slettes også.'))return;
   sbDelete('teams','id=eq.'+id).then(function(){
+    STATE.editTeam=null;
     closeModal();
+    STATE.teams=STATE.teams.filter(function(t){return t.id!==id;});
+    STATE.events=STATE.events.filter(function(e){return e.team_id!==id;});
+    if(STATE.teamFilter===id)STATE.teamFilter='all';
+    render();
     loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(render);
   });
 };
