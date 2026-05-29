@@ -1280,8 +1280,13 @@ function rTeamModal(){
     html+='<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">';
     html+='<select class="finput" id="addMemberSel" style="flex:1;margin-bottom:0;">';
     html+='<option value="">V&#230;lg spiller at tilf&#248;je...</option>';
-    for(var i=0;i<STATE.players.length;i++){
-      html+='<option value="'+STATE.players[i].id+'">'+esc(STATE.players[i].name)+'</option>';
+    var teamClubId=ed.club_id||clubId();
+    var clubPlayers=STATE.players.filter(function(pl){return pl.club_id===teamClubId;});
+    if(!clubPlayers.length){
+      html+='<option disabled>Ingen spillere oprettet i denne forening</option>';
+    }
+    for(var i=0;i<clubPlayers.length;i++){
+      html+='<option value="'+clubPlayers[i].id+'">'+esc(clubPlayers[i].name)+'</option>';
     }
     html+='</select>';
     html+='<button class="btn btn-light btn-sm" onclick="addTeamMember(\''+ed.id+'\')">Tilf&#248;j</button>';
