@@ -290,9 +290,14 @@ function loadSessions(){
 }
 
 function loadTeams(){
-  var q=STATE.profile&&STATE.profile.role==='superadmin'
-    ?'order=name'
-    :'club_id=eq.'+clubId()+'&order=name';
+  var q;
+  if(STATE.profile&&STATE.profile.role==='superadmin'){
+    q='order=name';
+  } else {
+    // club_admin bruger eget id som club_id
+    var cid=STATE.profile&&STATE.profile.role==='club_admin'?STATE.profile.id:clubId();
+    q='club_id=eq.'+cid+'&order=name';
+  }
   return sbGet('teams',q).then(function(data){
     if(Array.isArray(data))STATE.teams=data;
   }).catch(function(){});
@@ -1394,7 +1399,7 @@ window.saveTeam=function(){
   var name=(document.getElementById('tmN')||{}).value||'';
   if(!name.trim()){alert('Angiv et holdnavn');return;}
   var type=(document.getElementById('tmT')||{}).value||'herre';
-  var cid=clubId();
+  var cid;
   if(role==='superadmin'){
     var clubSel=document.getElementById('tmClub');
     if(clubSel&&clubSel.value){
@@ -1402,12 +1407,19 @@ window.saveTeam=function(){
     } else if(!STATE.editTeam){
       alert(!STATE.allProfiles.length?'Ingen foreninger fundet – prøv at genindlæse siden':'Vælg en forening');
       return;
+    } else {
+      cid=STATE.editTeam.club_id;
     }
+  } else {
+    // club_admin: brug eget profile.id som club_id
+    cid=STATE.profile.id;
   }
   var data={club_id:cid,name:name.trim(),type:type};
+  alert('DEBUG: sender\ncid='+cid+'\nnavn='+name+'\nrole='+role);
   var ed=STATE.editTeam;
   var p=ed&&ed.id?sbPatch('teams',data,'id=eq.'+ed.id):sbPost('teams',data);
   p.then(function(res){
+    alert('DEBUG svar: '+JSON.stringify(res).substring(0,300));
     if(res&&res.code){alert('Supabase fejl: '+(res.message||res.code));return;}
     closeModal();
     loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(render);
