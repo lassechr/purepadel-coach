@@ -386,6 +386,12 @@ function loadAll() {
   }).then(function(){
     return loadEventResponses();
   }).then(function(){
+    // Also load player data if trainer has is_player flag
+    if(STATE.profile&&STATE.profile.is_player){
+      return loadPlayerData();
+    }
+    return Promise.resolve();
+  }).then(function(){
     STATE.loading = false; render();
   }).catch(function(err){
     console.error('loadAll fejl:', err);
@@ -443,6 +449,7 @@ function render() {
     if(STATE.tab === 'admin' && p.role !== 'superadmin') STATE.tab = 'drills';
   } else {
     tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'},{id:'hold',label:'Hold'},{id:'historik',label:'Historik'},{id:'konto',label:'Konto'}];
+    if(p.is_player) tabs.splice(4,0,{id:'mine_traening',label:'Mine træninger'});
     if(STATE.tab === 'admin') STATE.tab = 'drills';
   }
 
@@ -483,6 +490,7 @@ function render() {
     else if(STATE.tab==='players') html += rPlayers();
     else if(STATE.tab==='matches') html += rMatches();
     else if(STATE.tab==='hold') html += rHold();
+    else if(STATE.tab==='mine_traening') html += rMineTraening();
     else if(STATE.tab==='historik') html += rHistorik();
     else if(STATE.tab==='konto') html += rKonto();
     else html += rMatches();
@@ -1650,6 +1658,28 @@ window.sendReminder=function(eventId){
   }
 };
 
+function rMineTraening(){
+  var html='<div class="sec-head"><div class="sec-title">Mine tr\u00e6ninger</div></div>';
+  var myEvents=STATE.playerEvents||[];
+  var myResponses=STATE.playerResponses||[];
+  var now=new Date();
+  var upcoming=myEvents.filter(function(e){return new Date(e.date)>=now;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var past=myEvents.filter(function(e){return new Date(e.date)<now;}).sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+  if(!myEvents.length){
+    html+='<div class="empty">Du er ikke tilknyttet et hold endnu.<br><small style="color:#bbb;">Bed din forening om at tilf\u00f8je dig til et hold under Hold-fanen.</small></div>';
+    return html;
+  }
+  if(!upcoming.length){
+    html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:16px;text-align:center;color:#aaa;font-size:13px;margin-bottom:16px;">Ingen kommende begivenheder</div>';
+  }
+  for(var i=0;i<upcoming.length;i++){html+=rPlayerEventCard(upcoming[i],myResponses,false);}
+  if(past.length){
+    html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:16px 0 12px;">Tidligere</div>';
+    for(var j=0;j<Math.min(5,past.length);j++){html+=rPlayerEventCard(past[j],myResponses,true);}
+  }
+  return html;
+}
+
 function rKonto(){
   var p=STATE.profile;
   var days=daysLeft(p.subscription_expires);
@@ -1939,10 +1969,9 @@ window.doRegister=function(){
     }
     var userId=data.user&&data.user.id;
     if(!userId){if(err)err.textContent='Noget gik galt, pr\u00f8v igen';return;}
-    // Create profile
-    sbPost('profiles',{id:userId,email:email,name:name.trim(),role:'player',club_id:clubId,status:'pending'}).then(function(){
+    // PATCH the auto-created profile with correct role/status
+    sbPatch('profiles',{name:name.trim(),role:'player',club_id:clubId,status:'pending'},'id=eq.'+userId).then(function(){
       if(err)err.textContent='';
-      // Auto login
       sbAuth(email,pw).then(function(authData){
         if(authData.access_token){
           saveSession(authData);
@@ -2256,6 +2285,7 @@ window.clrImp=function(){STATE.irows=[];render();setTimeout(function(){var el=do
 function rEditUserModal(){
   var p=STATE.editUserProfile||{};
   var isClub=p.subscription_type==='club';
+  var isPlayer=p.role==='player';
   var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
   html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:6px;">';
   html+='<div class="modal-title">Rediger bruger</div>';
@@ -2266,20 +2296,34 @@ function rEditUserModal(){
   html+='<div class="fg"><label class="flabel">Foreningsnavn</label><input class="finput" id="euCN" value="'+esc(p.club_name&&p.club_name!=='null'?p.club_name:'')+'" placeholder="fx Padel Nord"></div>';
   html+='<div class="frow">';
   html+='<div><label class="flabel">Type</label><select class="finput" id="euT">';
-  html+='<option value="trainer"'+(isClub?'':' selected')+'>Træner</option>';
+  html+='<option value="trainer"'+(isClub||isPlayer?'':' selected')+'>Tr\u00e6ner</option>';
   html+='<option value="club"'+(isClub?' selected':'')+'>Forening</option>';
+  html+='<option value="player"'+(isPlayer?' selected':'')+'>Spiller</option>';
   html+='</select></div>';
-  html+='<div><label class="flabel">Abonnement udløber</label>';
-  html+='<input class="finput" id="euExp" type="date" value="'+(p.subscription_expires?p.subscription_expires.substring(0,10):'')+'"></div>';
+  html+='<div><label class="flabel">Abonnement udl\u00f8ber</label>';
+  html+='<input class="finput" id="euExp" type="date" value="'+(p.subscription_expires?p.subscription_expires.substring(0,10):'')+'" ></div>';
   html+='</div>';
+  if(!isClub){
+    html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:6px;">';
+    html+='<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">';
+    html+='<input type="checkbox" id="euIsPlayer" '+(p.is_player?'checked':'')+' style="width:16px;height:16px;cursor:pointer;">';
+    html+='<div><div style="font-size:13px;font-weight:600;color:#111;">Er ogs\u00e5 spiller p\u00e5 et hold</div>';
+    html+='<div style="font-size:11px;color:#888;margin-top:2px;">F\u00e5r \"Mine tr\u00e6ninger\" fane og kan tilmelde sig hold</div>';
+    html+='</div></label></div>';
+  }
+  if(isPlayer){
+    html+='<div class="fg"><label class="flabel">Status</label><select class="finput" id="euStatus">';
+    html+='<option value="pending"'+(p.status==='pending'?' selected':'')+'>Afventer</option>';
+    html+='<option value="active"'+(p.status==='active'?' selected':'')+'>Aktiv</option>';
+    html+='<option value="rejected"'+(p.status==='rejected'?' selected':'')+'>Afvist</option>';
+    html+='</select></div>';
+  }
   html+='<div class="modal-actions">';
   html+='<button class="btn btn-light" onclick="closeModal()">Annuller</button>';
-  html+='<button class="btn btn-dark" onclick="saveEditUser()">Gem ændringer</button>';
-  html+='</div>';
-  html+='</div></div>';
+  html+='<button class="btn btn-dark" onclick="saveEditUser()">Gem \u00e6ndringer</button>';
+  html+='</div></div></div>';
   return html;
 }
-
 window.editUser=function(id){
   for(var i=0;i<STATE.allProfiles.length;i++){
     if(STATE.allProfiles[i].id===id){STATE.editUserProfile=STATE.allProfiles[i];break;}
@@ -2306,12 +2350,18 @@ window.saveEditUser=function(){
   var clubName=(document.getElementById('euCN')||{}).value||'';
   var type=(document.getElementById('euT')||{}).value||'trainer';
   var exp=(document.getElementById('euExp')||{}).value||null;
-  var role=type==='club'?'club_admin':'trainer';
+  var isPlayerCb=document.getElementById('euIsPlayer');
+  var isPlayer=isPlayerCb?isPlayerCb.checked:p.is_player;
+  var statusEl=document.getElementById('euStatus');
+  var status=statusEl?statusEl.value:(p.status||'active');
+  var role=type==='club'?'club_admin':type==='player'?'player':'trainer';
   var data={
     name:name.trim()||null,
     club_name:clubName.trim()||null,
-    subscription_type:type,
+    subscription_type:type==='player'?p.subscription_type:type,
     role:role,
+    is_player:isPlayer,
+    status:status,
     subscription_expires:exp?exp+'T00:00:00Z':null
   };
   sbPatch('profiles',data,'id=eq.'+p.id).then(function(){
