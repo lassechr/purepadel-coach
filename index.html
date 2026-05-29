@@ -258,7 +258,7 @@ function loadPlayers() {
     ? 'order=name' : 'club_id=eq.'+clubId()+'&order=name';
   return sbGet('players', q).then(function(data) {
     if(Array.isArray(data)) STATE.players = data;
-  });
+  }).catch(function(){});
 }
 
 function loadDrills() {
@@ -280,13 +280,13 @@ function loadDrills() {
 function loadAllProfiles() {
   return sbGet('profiles', 'order=created_at').then(function(data) {
     if(Array.isArray(data)) STATE.allProfiles = data;
-  });
+  }).catch(function(){});
 }
 
 function loadSessions(){
   return sbGet('sessions','club_id=eq.'+clubId()+'&order=date.desc').then(function(data){
     if(Array.isArray(data))STATE.sessions=data;
-  });
+  }).catch(function(){});
 }
 
 function loadTeams(){
@@ -295,7 +295,7 @@ function loadTeams(){
     :'club_id=eq.'+clubId()+'&order=name';
   return sbGet('teams',q).then(function(data){
     if(Array.isArray(data))STATE.teams=data;
-  });
+  }).catch(function(){});
 }
 
 function loadEvents(){
@@ -320,9 +320,12 @@ function loadTeamMembers(teamId){
 
 function loadSheet() {
   return new Promise(function(resolve) {
+    var done=false;
+    var timer=setTimeout(function(){if(!done){done=true;resolve();}},5000);
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv', true);
     xhr.onload = function() {
+      if(done)return; done=true; clearTimeout(timer);
       if(xhr.status===200) {
         var lines=xhr.responseText.trim().split('\n');
         if(lines.length<2){resolve();return;}
@@ -342,7 +345,7 @@ function loadSheet() {
       }
       resolve();
     };
-    xhr.onerror=function(){resolve();};
+    xhr.onerror=function(){if(!done){done=true;clearTimeout(timer);resolve();}};
     xhr.send();
   });
 }
@@ -360,6 +363,9 @@ function loadAll() {
   }).then(function(){
     return loadEventResponses();
   }).then(function(){
+    STATE.loading = false; render();
+  }).catch(function(err){
+    console.error('loadAll fejl:', err);
     STATE.loading = false; render();
   });
 }
