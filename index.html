@@ -572,7 +572,8 @@ function rAdmin() {
   var pendingPlayers=profiles.filter(function(p){return p.role==='player'&&p.status==='pending';});
   var allPlayerProfiles=profiles.filter(function(p){return p.role==='player';});
   // Debug
-  html+='<div style="font-size:11px;color:#aaa;background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:12px;">Debug: '+profiles.length+' profiler i alt &bull; '+allPlayerProfiles.length+' spillere &bull; '+pendingPlayers.length+' afventende</div>';
+  var playerEmails=allPlayerProfiles.map(function(p){return p.email;}).join(', ')||'ingen';
+  html+='<div style="font-size:11px;color:#aaa;background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:12px;">Debug: '+profiles.length+' profiler i alt &bull; '+allPlayerProfiles.length+' spillere ('+playerEmails+') &bull; '+pendingPlayers.length+' afventende &bull; <button onclick="loadAllProfiles().then(render)" style="font-size:11px;border:none;background:#ddd;border-radius:4px;padding:2px 6px;cursor:pointer;">Genindl\u00e6s</button></div>';
   if(pendingPlayers.length){
     html+='<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:10px;padding:14px;margin-bottom:16px;">';
     html+='<div style="font-size:12px;font-weight:700;color:#b7770d;margin-bottom:10px;">&#9203; '+pendingPlayers.length+' spiller(e) afventer godkendelse</div>';
