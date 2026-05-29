@@ -1646,6 +1646,7 @@ window.addPlayerToTeam=function(sel,playerId){
     return;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId}).then(function(res){
+    if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
     if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
     if(!STATE.teamMembersCache)STATE.teamMembersCache={};
     delete STATE.teamMembersCache[teamId];
@@ -1821,6 +1822,7 @@ window.addTeamMember=function(teamId){
     return;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId}).then(function(res){
+    if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
     if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
     if(!STATE.teamMembersCache)STATE.teamMembersCache={};
     delete STATE.teamMembersCache[teamId];
@@ -1870,8 +1872,13 @@ window.sendReminder=function(eventId){
   var teamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
   var unanswered=teamMembers.filter(function(m){return answeredIds.indexOf(m.player_id)<0;});
   if(!unanswered.length){alert('Alle har allerede svaret!');return;}
+  var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+    +'<h2 style="color:#111;">'+title+'</h2>'
+    +'<p>'+body+'</p>'
+    +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Tilmeld dig nu</a>'
+    +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel Coach</p></div>';
   for(var j=0;j<unanswered.length;j++){
-    sendPushToPlayer(unanswered[j].player_id,title,body);
+    notifyPlayer(unanswered[j].player_id,title,body,title,emailHtml);
   }
   alert('P\u00e5mindelse sendt til '+unanswered.length+' spiller(e) der ikke har svaret.');
 };
@@ -2677,7 +2684,12 @@ window.approvePlayer=function(id){
           sbPost('players',{club_id:prof.club_id,name:prof.name,level:3,side:'begge',notes:'',profile_id:id});
         }
       });
-      sendPushToPlayer(id,'Din konto er godkendt!','Du kan nu logge ind og se dine tr\u00e6ninger og kampe.');
+      var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+        +'<h2 style="color:#111;">Velkommen til '+( prof.club_name||'PurePadel')+'!</h2>'
+        +'<p>Din konto er nu godkendt. Du kan logge ind og se dine tr\u00e6ninger og kampe.</p>'
+        +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
+        +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel Coach</p></div>';
+      notifyPlayer(id,'Din konto er godkendt!','Du kan nu logge ind og se dine tr\u00e6ninger og kampe.','Din PurePadel-konto er godkendt',emailHtml);
     }
     loadAllProfiles().then(render);
   });
@@ -2695,11 +2707,10 @@ window.saveNotifyPref=function(type,val){
 };
 
 function sendPushToPlayer(profileId,title,body){
-  // Check notify_push preference first
   sbGet('profiles','id=eq.'+profileId).then(function(data){
     if(!Array.isArray(data)||!data.length)return;
     var prof=data[0];
-    if(prof.notify_push===false)return; // Player opted out
+    if(prof.notify_push===false)return;
     var tok=STATE.session?STATE.session.access_token:null;
     var xhr=new XMLHttpRequest();
     xhr.open('POST',SB_URL+'/functions/v1/send-push',true);
@@ -2708,6 +2719,21 @@ function sendPushToPlayer(profileId,title,body){
     xhr.setRequestHeader('apikey',SB_KEY);
     xhr.send(JSON.stringify({player_id:profileId,title:title,body:body}));
   });
+}
+
+function sendEmailToPlayer(profileId,subject,text,html){
+  var tok=STATE.session?STATE.session.access_token:null;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',SB_URL+'/functions/v1/send-email',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Authorization','Bearer '+tok);
+  xhr.setRequestHeader('apikey',SB_KEY);
+  xhr.send(JSON.stringify({player_id:profileId,subject:subject,text:text,html:html||null}));
+}
+
+function notifyPlayer(profileId,title,body,emailSubject,emailHtml){
+  sendPushToPlayer(profileId,title,body);
+  sendEmailToPlayer(profileId,emailSubject||title,body,emailHtml||null);
 }
 
 window.rejectPlayer=function(id){
