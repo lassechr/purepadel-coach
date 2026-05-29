@@ -152,7 +152,10 @@ var STATE = {
   mvids: [],
   irows: [], showImp: false,
   loading: false,
-  rounds: 1, baneGroups: 0
+  rounds: 1, baneGroups: 0,
+  teams: [], events: [], eventResponses: [],
+  editTeam: null, editEvent: null, openEvent: null,
+  teamFilter: 'all'
 };
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -286,6 +289,32 @@ function loadSessions(){
   });
 }
 
+function loadTeams(){
+  return sbGet('teams','club_id=eq.'+clubId()+'&order=name').then(function(data){
+    if(Array.isArray(data))STATE.teams=data;
+  });
+}
+
+function loadEvents(){
+  var teamIds=STATE.teams.map(function(t){return t.id;});
+  if(!teamIds.length){STATE.events=[];return Promise.resolve();}
+  return sbGet('events','team_id=in.('+teamIds.join(',')+')&order=date').then(function(data){
+    if(Array.isArray(data))STATE.events=data;
+  });
+}
+
+function loadEventResponses(){
+  var evIds=STATE.events.map(function(e){return e.id;});
+  if(!evIds.length){STATE.eventResponses=[];return Promise.resolve();}
+  return sbGet('event_responses','event_id=in.('+evIds.join(',')+')').then(function(data){
+    if(Array.isArray(data))STATE.eventResponses=data;
+  });
+}
+
+function loadTeamMembers(teamId){
+  return sbGet('team_members','team_id=eq.'+teamId+'&order=joined_at');
+}
+
 function loadSheet() {
   return new Promise(function(resolve) {
     var xhr = new XMLHttpRequest();
@@ -321,7 +350,13 @@ function loadAll() {
   STATE.loading = true; render();
   var promises = [loadPlayers(), loadDrills(), loadSheet(), loadSessions()];
   if(STATE.profile && STATE.profile.role === 'superadmin') promises.push(loadAllProfiles());
-  Promise.all(promises).then(function() {
+  Promise.all(promises).then(function(){
+    return loadTeams();
+  }).then(function(){
+    return loadEvents();
+  }).then(function(){
+    return loadEventResponses();
+  }).then(function(){
     STATE.loading = false; render();
   });
 }
@@ -360,10 +395,10 @@ function render() {
 
   var tabs = [];
   if(p.role === 'superadmin') {
-    tabs = [{id:'admin',label:'Admin'},{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'}];
+    tabs = [{id:'admin',label:'Admin'},{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'},{id:'hold',label:'Hold'}];
     if(STATE.tab === 'admin' && p.role !== 'superadmin') STATE.tab = 'drills';
   } else {
-    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'},{id:'historik',label:'Historik'},{id:'konto',label:'Konto'}];
+    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'},{id:'hold',label:'Hold'},{id:'historik',label:'Historik'},{id:'konto',label:'Konto'}];
     if(STATE.tab === 'admin') STATE.tab = 'drills';
   }
 
@@ -399,6 +434,7 @@ function render() {
     else if(STATE.tab==='drills') html += rDrills();
     else if(STATE.tab==='players') html += rPlayers();
     else if(STATE.tab==='matches') html += rMatches();
+    else if(STATE.tab==='hold') html += rHold();
     else if(STATE.tab==='historik') html += rHistorik();
     else if(STATE.tab==='konto') html += rKonto();
     else html += rMatches();
@@ -410,6 +446,8 @@ function render() {
   else if(STATE.modal==='add_player') html += rPlayerModal();
   else if(STATE.modal==='edit_player') html += rEditPlayerModal();
   else if(STATE.modal==='add_user') html += rAddUserModal();
+  else if(STATE.modal==='edit_team') html += rTeamModal();
+  else if(STATE.modal==='edit_event') html += rEventModal();
 
   app.innerHTML = html;
 }
@@ -1046,6 +1084,400 @@ function getPlayerName(id){
   for(var i=0;i<STATE.players.length;i++)if(STATE.players[i].id===id)return STATE.players[i].name;
   return id||'?';
 }
+
+
+// ── HELPERS ──────────────────────────────────────────────────
+function getPlayerName(id){
+  for(var i=0;i<STATE.players.length;i++)if(STATE.players[i].id===id)return STATE.players[i].name||'Ukendt';
+  return 'Ukendt spiller';
+}
+function localDT(iso){
+  if(!iso)return'';
+  var d=new Date(iso);
+  var pad=function(n){return n<10?'0'+n:String(n);};
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+
+// ── HOLD (TEAMS + EVENTS) ────────────────────────────────────
+function rHold(){
+  var teams=STATE.teams;
+  var html='<div class="sec-head"><div class="sec-title">Hold &amp; Tr&#230;ninger</div>';
+  html+='<button class="btn btn-dark btn-sm" onclick="openModal(\'edit_team\')">+ Nyt hold</button></div>';
+
+  if(!teams.length){
+    html+='<div class="empty">Ingen hold endnu &#8211; opret det f&#248;rste hold</div>';
+    return html;
+  }
+
+  // Team filter pills
+  html+='<div class="pills" style="margin-bottom:16px;">';
+  html+='<span class="pill'+(STATE.teamFilter==='all'?' active':'')+'" onclick="STATE.teamFilter=\'all\';render()">Alle</span>';
+  for(var ti=0;ti<teams.length;ti++){
+    var tm=teams[ti];
+    html+='<span class="pill'+(STATE.teamFilter===tm.id?' active':'')+'" onclick="STATE.teamFilter=\''+tm.id+'\';render()">'+esc(tm.name)+'</span>';
+  }
+  html+='</div>';
+
+  var filteredTeams=STATE.teamFilter==='all'?teams:teams.filter(function(t){return t.id===STATE.teamFilter;});
+
+  for(var i=0;i<filteredTeams.length;i++){
+    var team=filteredTeams[i];
+    var teamEvents=STATE.events.filter(function(e){return e.team_id===team.id;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    var now=new Date();
+    var upcoming=teamEvents.filter(function(e){return new Date(e.date)>=now;});
+    var past=teamEvents.filter(function(e){return new Date(e.date)<now;});
+    var typeLabel=team.type==='dame'?'Damehold':team.type==='mix'?'Mixhold':'Herrehold';
+
+    html+='<div style="border:1.5px solid #e5e5e5;border-radius:12px;margin-bottom:16px;overflow:hidden;">';
+    html+='<div style="background:#f9f9f9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<div>';
+    html+='<div style="font-size:15px;font-weight:700;color:#111;">'+esc(team.name)+'</div>';
+    html+='<div style="font-size:12px;color:#888;margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:6px;">';
+    html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Begivenhed</button>';
+    html+='<button class="btn btn-light btn-sm" onclick="editTeam(\''+team.id+'\')">&#9881;</button>';
+    html+='</div></div>';
+
+    if(!teamEvents.length){
+      html+='<div style="padding:14px 16px;font-size:13px;color:#aaa;">Ingen begivenheder endnu</div>';
+    } else {
+      for(var ei=0;ei<upcoming.length;ei++){html+=rEventRow(upcoming[ei],team,false);}
+      if(past.length){
+        html+='<div style="padding:8px 16px;font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;border-top:1px solid #f0f0f0;">Tidligere</div>';
+        for(var pi=0;pi<Math.min(3,past.length);pi++){html+=rEventRow(past[past.length-1-pi],team,true);}
+      }
+    }
+    html+='</div>';
+  }
+  return html;
+}
+
+function rEventRow(ev,team,isPast){
+  var responses=STATE.eventResponses.filter(function(r){return r.event_id===ev.id;});
+  var yesCount=responses.filter(function(r){return r.response==='yes';}).length;
+  var noCount=responses.filter(function(r){return r.response==='no';}).length;
+  var d=new Date(ev.date);
+  var dateStr=d.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
+  var timeStr=d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
+  var isMatch=ev.type==='match';
+  var typeColor=isMatch?'#c0392b':'#1d6fb5';
+  var typeBg=isMatch?'#fdecea':'#e8f0fb';
+  var typeBorder=isMatch?'#f5b7b1':'#b3cef0';
+  var typeLabel=isMatch?'Kamp':'Tr&#230;ning';
+  var deadline=ev.signup_deadline?new Date(ev.signup_deadline):null;
+  var deadlinePast=deadline&&deadline<new Date();
+  var isOpen=STATE.openEvent===ev.id;
+
+  var html='<div style="border-top:1px solid #f0f0f0;'+(isPast?'opacity:0.65;':'')+'">';
+  html+='<div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleEvent(\''+ev.id+'\')">';
+  html+='<div style="flex:1;min-width:0;">';
+  html+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+  html+='<span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:4px;border:1px solid;color:'+typeColor+';background:'+typeBg+';border-color:'+typeBorder+';">'+typeLabel+'</span>';
+  if(isMatch&&ev.home_away){html+='<span style="font-size:10px;color:#888;">'+(ev.home_away==='home'?'Hjemme':'Ude')+'</span>';}
+  html+='<span style="font-size:14px;font-weight:600;color:#111;">'+esc(ev.title)+'</span>';
+  html+='</div>';
+  html+='<div style="font-size:12px;color:#888;margin-top:3px;">'+dateStr+' &bull; '+timeStr;
+  if(ev.location)html+=' &bull; '+esc(ev.location);
+  html+='</div>';
+  if(deadline){html+='<div style="font-size:11px;color:'+(deadlinePast?'#c0392b':'#b7770d')+';margin-top:2px;">Frist: '+deadline.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+'</div>';}
+  html+='</div>';
+  html+='<div style="display:flex;gap:8px;align-items:center;flex-shrink:0;margin-left:10px;">';
+  html+='<span style="font-size:13px;color:#1e8449;font-weight:700;">'+yesCount+'</span>';
+  html+='<span style="font-size:12px;color:#aaa;">/</span>';
+  html+='<span style="font-size:13px;color:#c0392b;font-weight:700;">'+noCount+'</span>';
+  html+='<button class="btn btn-light btn-sm" onclick="event.stopPropagation();editEvent(\''+ev.id+'\')">&#9881;</button>';
+  html+='<span style="color:#aaa;font-size:12px;">'+(isOpen?'&#9650;':'&#9660;')+'</span>';
+  html+='</div></div>';
+
+  if(isOpen){html+=rEventDetail(ev,responses);}
+  html+='</div>';
+  return html;
+}
+
+function rEventDetail(ev,responses){
+  var yes=responses.filter(function(r){return r.response==='yes';});
+  var no=responses.filter(function(r){return r.response==='no';});
+  var unanswered=STATE.players.filter(function(p){
+    return !responses.find(function(r){return r.player_id===p.id;});
+  });
+  var html='<div style="background:#f9f9f9;padding:14px 16px;border-top:1px solid #eee;">';
+
+  // YES
+  html+='<div style="font-size:11px;font-weight:700;color:#1e8449;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Tilmeldt ('+yes.length+')</div>';
+  if(!yes.length)html+='<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Ingen tilmeldt endnu</div>';
+  for(var i=0;i<yes.length;i++){
+    var r=yes[i];
+    html+='<div style="font-size:13px;padding:5px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">';
+    html+='<span style="font-weight:500;">'+esc(getPlayerName(r.player_id))+'</span>';
+    if(r.note)html+='<span style="font-size:11px;color:#888;font-style:italic;">'+esc(r.note)+'</span>';
+    html+='</div>';
+  }
+
+  // NO
+  html+='<div style="font-size:11px;font-weight:700;color:#c0392b;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px;">Frameldt ('+no.length+')</div>';
+  if(!no.length)html+='<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Ingen frameldt</div>';
+  for(var j=0;j<no.length;j++){
+    var rn=no[j];
+    html+='<div style="font-size:13px;padding:5px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">';
+    html+='<span style="font-weight:500;">'+esc(getPlayerName(rn.player_id))+'</span>';
+    if(rn.note)html+='<span style="font-size:11px;color:#888;font-style:italic;">'+esc(rn.note)+'</span>';
+    html+='</div>';
+  }
+
+  // NOT ANSWERED
+  html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px;">Ikke svaret ('+unanswered.length+')</div>';
+  if(!unanswered.length)html+='<div style="font-size:12px;color:#aaa;">Alle har svaret</div>';
+  for(var k=0;k<unanswered.length;k++){
+    html+='<div style="font-size:13px;color:#aaa;padding:5px 0;border-bottom:1px solid #eee;">'+esc(unanswered[k].name)+'</div>';
+  }
+
+  // Actions
+  html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">';
+  html+='<button class="btn btn-dark btn-sm" onclick="sendReminder(\''+ev.id+'\')">Send p&#229;mindelse til ikke-svar</button>';
+  html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Slet begivenhed</button>';
+  html+='</div></div>';
+  return html;
+}
+
+function rTeamModal(){
+  var ed=STATE.editTeam;
+  var isEdit=!!(ed&&ed.id);
+  var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
+  html+='<div class="modal-title">'+(isEdit?'Rediger hold':'Nyt hold')+'</div>';
+  html+='<div class="modal-sub">Hold bruges til at organisere tr&#230;ninger og kampe</div>';
+  html+='<div class="fg"><label class="flabel">Holdnavn</label><input class="finput" id="tmN" value="'+esc(isEdit?ed.name||'':'')+'" placeholder="fx Herrehold 1, Damehold A..."></div>';
+  html+='<div class="fg"><label class="flabel">Type</label><select class="finput" id="tmT">';
+  html+='<option value="herre"'+(isEdit&&ed.type==='herre'?' selected':(!isEdit?' selected':''))+'>Herrehold</option>';
+  html+='<option value="dame"'+(isEdit&&ed.type==='dame'?' selected':'')+'>Damehold</option>';
+  html+='<option value="mix"'+(isEdit&&ed.type==='mix'?' selected':'')+'>Mixhold</option>';
+  html+='</select></div>';
+
+  if(isEdit){
+    html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html+='<div class="flabel" style="margin-bottom:10px;">Spillere p&#229; holdet</div>';
+    html+='<div id="teamMembersList"><div style="font-size:12px;color:#aaa;padding:8px 0;">Henter spillere...</div></div>';
+    html+='<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">';
+    html+='<select class="finput" id="addMemberSel" style="flex:1;margin-bottom:0;">';
+    html+='<option value="">V&#230;lg spiller at tilf&#248;je...</option>';
+    for(var i=0;i<STATE.players.length;i++){
+      html+='<option value="'+STATE.players[i].id+'">'+esc(STATE.players[i].name)+'</option>';
+    }
+    html+='</select>';
+    html+='<button class="btn btn-light btn-sm" onclick="addTeamMember(\''+ed.id+'\')">Tilf&#248;j</button>';
+    html+='</div></div>';
+  }
+
+  html+='<div class="modal-actions">';
+  if(isEdit)html+='<button class="btn btn-red btn-sm" onclick="deleteTeam(\''+ed.id+'\')">Slet hold</button>';
+  html+='<button class="btn btn-light" onclick="closeModal()">Annuller</button>';
+  html+='<button class="btn btn-dark" onclick="saveTeam()">'+(isEdit?'Gem &#230;ndringer':'Opret hold')+'</button>';
+  html+='</div></div></div>';
+  if(isEdit){setTimeout(function(){refreshTeamMembersList(ed.id);},50);}
+  return html;
+}
+
+function rEventModal(){
+  var ed=STATE.editEvent||{};
+  var isEdit=!!(ed&&ed.id);
+  var isMatch=ed.type==='match';
+  var teams=STATE.teams;
+  var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
+  html+='<div class="modal-title">'+(isEdit?'Rediger begivenhed':'Ny begivenhed')+'</div>';
+
+  html+='<div class="fg"><label class="flabel">Titel</label><input class="finput" id="evT" value="'+esc(ed.title||'')+'" placeholder="fx Torsdagstr&#230;ning, Kamp vs Padel Nord..."></div>';
+
+  html+='<div class="fg"><label class="flabel">Type</label>';
+  html+='<div style="display:flex;gap:8px;margin-top:6px;">';
+  html+='<button id="evTypeTr" class="btn '+(isMatch?'btn-light':'btn-dark')+' btn-sm" onclick="setEvType(\'training\')">Tr&#230;ning</button>';
+  html+='<button id="evTypeKa" class="btn '+(isMatch?'btn-dark':'btn-light')+' btn-sm" onclick="setEvType(\'match\')">Kamp</button>';
+  html+='</div><input type="hidden" id="evType" value="'+(ed.type||'training')+'"></div>';
+
+  html+='<div id="evMatchFields" style="'+(isMatch?'':'display:none;')+'">';
+  html+='<div class="frow">';
+  html+='<div><label class="flabel">Modstander</label><input class="finput" id="evOpp" value="'+esc(ed.opponent||'')+'" placeholder="Modstanderhold..."></div>';
+  html+='<div><label class="flabel">Hjemme/Ude</label><select class="finput" id="evHA">';
+  html+='<option value="home"'+(ed.home_away==='home'?' selected':'')+'>Hjemme</option>';
+  html+='<option value="away"'+(ed.home_away==='away'?' selected':'')+'>Ude</option>';
+  html+='</select></div></div></div>';
+
+  html+='<div class="fg"><label class="flabel">Hold</label><select class="finput" id="evTeam">';
+  for(var ti=0;ti<teams.length;ti++){
+    html+='<option value="'+teams[ti].id+'"'+(ed.team_id===teams[ti].id?' selected':'')+'>'+esc(teams[ti].name)+'</option>';
+  }
+  html+='</select></div>';
+
+  html+='<div class="frow">';
+  html+='<div><label class="flabel">Dato og tid</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):'')+'"></div>';
+  html+='<div><label class="flabel">Tilmeldingsfrist</label><input class="finput" id="evDeadline" type="datetime-local" value="'+(ed.signup_deadline?localDT(ed.signup_deadline):'')+'"></div>';
+  html+='</div>';
+
+  html+='<div class="fg"><label class="flabel">Sted (valgfrit)</label><input class="finput" id="evLoc" value="'+esc(ed.location||'')+'" placeholder="Hal, adresse..."></div>';
+  html+='<div class="fg"><label class="flabel">Beskrivelse (valgfrit)</label><textarea class="finput" id="evNotes" style="resize:vertical;min-height:60px;" placeholder="Ekstra info til spillerne...">'+esc(ed.notes||'')+'</textarea></div>';
+
+  html+='<div class="modal-actions">';
+  if(isEdit)html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ed.id+'\')">Slet</button>';
+  html+='<button class="btn btn-light" onclick="closeModal()">Annuller</button>';
+  html+='<button class="btn btn-dark" onclick="saveEvent()">'+(isEdit?'Gem &#230;ndringer':'Opret')+'</button>';
+  html+='</div></div></div>';
+  return html;
+}
+
+// ── HOLD ACTIONS ─────────────────────────────────────────────
+window.openNewEvent=function(teamId){
+  STATE.editEvent={team_id:teamId};
+  STATE.modal='edit_event';
+  render();
+};
+
+window.editTeam=function(id){
+  for(var i=0;i<STATE.teams.length;i++)if(STATE.teams[i].id===id){STATE.editTeam=STATE.teams[i];break;}
+  STATE.modal='edit_team';
+  render();
+};
+
+window.editEvent=function(id){
+  for(var i=0;i<STATE.events.length;i++)if(STATE.events[i].id===id){STATE.editEvent=STATE.events[i];break;}
+  STATE.modal='edit_event';
+  render();
+};
+
+window.toggleEvent=function(id){
+  STATE.openEvent=STATE.openEvent===id?null:id;
+  render();
+};
+
+window.setEvType=function(type){
+  document.getElementById('evType').value=type;
+  var mf=document.getElementById('evMatchFields');
+  if(mf)mf.style.display=type==='match'?'':'none';
+  var tb=document.getElementById('evTypeTr');
+  var kb=document.getElementById('evTypeKa');
+  if(tb){tb.className='btn '+(type==='match'?'btn-light':'btn-dark')+' btn-sm';}
+  if(kb){kb.className='btn '+(type==='match'?'btn-dark':'btn-light')+' btn-sm';}
+};
+
+window.saveTeam=function(){
+  var name=(document.getElementById('tmN')||{}).value||'';
+  if(!name.trim()){alert('Angiv et holdnavn');return;}
+  var type=document.getElementById('tmT').value;
+  var data={club_id:clubId(),name:name.trim(),type:type};
+  var ed=STATE.editTeam;
+  var p=ed&&ed.id?sbPatch('teams',data,'id=eq.'+ed.id):sbPost('teams',data);
+  p.then(function(){
+    closeModal();
+    loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(render);
+  });
+};
+
+window.deleteTeam=function(id){
+  if(!confirm('Slet hold? Alle begivenheder p\u00e5 holdet slettes ogs\u00e5.'))return;
+  sbDelete('teams','id=eq.'+id).then(function(){
+    closeModal();
+    loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(render);
+  });
+};
+
+window.saveEvent=function(){
+  var title=(document.getElementById('evT')||{}).value||'';
+  if(!title.trim()){alert('Angiv en titel');return;}
+  var teamId=(document.getElementById('evTeam')||{}).value;
+  var dateVal=(document.getElementById('evDate')||{}).value;
+  if(!dateVal){alert('V\u00e6lg dato og tid');return;}
+  var type=(document.getElementById('evType')||{}).value||'training';
+  var deadline=(document.getElementById('evDeadline')||{}).value;
+  var data={
+    team_id:teamId,
+    trainer_id:STATE.profile.id,
+    title:title.trim(),
+    type:type,
+    date:new Date(dateVal).toISOString(),
+    signup_deadline:deadline?new Date(deadline).toISOString():null,
+    location:((document.getElementById('evLoc')||{}).value||'').trim()||null,
+    notes:((document.getElementById('evNotes')||{}).value||'').trim()||null,
+    opponent:type==='match'?((document.getElementById('evOpp')||{}).value||'').trim()||null:null,
+    home_away:type==='match'?(document.getElementById('evHA')||{}).value||null:null
+  };
+  var ed=STATE.editEvent;
+  var p=ed&&ed.id?sbPatch('events',data,'id=eq.'+ed.id):sbPost('events',data);
+  p.then(function(){
+    closeModal();
+    loadEvents().then(function(){return loadEventResponses();}).then(render);
+  });
+};
+
+window.deleteEvent=function(id){
+  if(!confirm('Slet begivenhed?'))return;
+  sbDelete('events','id=eq.'+id).then(function(){
+    closeModal();
+    STATE.openEvent=null;
+    loadEvents().then(function(){return loadEventResponses();}).then(render);
+  });
+};
+
+window.addTeamMember=function(teamId){
+  var sel=document.getElementById('addMemberSel');
+  if(!sel||!sel.value){alert('V\u00e6lg en spiller');return;}
+  sbPost('team_members',{team_id:teamId,player_id:sel.value}).then(function(){
+    refreshTeamMembersList(teamId);
+  });
+};
+
+window.removeTeamMember=function(memberId,teamId){
+  sbDelete('team_members','id=eq.'+memberId).then(function(){
+    refreshTeamMembersList(teamId);
+  });
+};
+
+function refreshTeamMembersList(teamId){
+  var el=document.getElementById('teamMembersList');
+  if(!el)return;
+  el.innerHTML='<div style="font-size:12px;color:#aaa;padding:4px 0;">Henter...</div>';
+  loadTeamMembers(teamId).then(function(members){
+    if(!Array.isArray(members)||!members.length){
+      el.innerHTML='<div style="font-size:12px;color:#aaa;padding:4px 0;">Ingen spillere p\u00e5 holdet endnu</div>';
+      return;
+    }
+    var html='';
+    for(var i=0;i<members.length;i++){
+      var m=members[i];
+      var name=getPlayerName(m.player_id);
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;">';
+      html+='<span style="font-size:13px;">'+esc(name)+'</span>';
+      html+='<button class="btn btn-red btn-sm" onclick="removeTeamMember(\''+m.id+'\',\''+teamId+'\')">Fjern</button>';
+      html+='</div>';
+    }
+    el.innerHTML=html;
+  });
+}
+
+window.sendReminder=function(eventId){
+  // Browser push reminder to all unanswered players for this event
+  var responses=STATE.eventResponses.filter(function(r){return r.event_id===eventId;});
+  var answeredIds=responses.map(function(r){return r.player_id;});
+  var unanswered=STATE.players.filter(function(p){return answeredIds.indexOf(p.id)<0;});
+  if(!unanswered.length){alert('Alle har allerede svaret!');return;}
+  // Find event
+  var ev=null;
+  for(var i=0;i<STATE.events.length;i++)if(STATE.events[i].id===eventId){ev=STATE.events[i];break;}
+  if(!ev)return;
+  var d=new Date(ev.date);
+  var dateStr=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+  var msg='P\u00e5mindelse: Husk at tilmelde dig "'+ev.title+'" d. '+dateStr+'. Tilmeld dig nu i appen.';
+  // Use Notification API if available
+  if('Notification' in window){
+    Notification.requestPermission().then(function(perm){
+      if(perm==='granted'){
+        new Notification('PurePadel P\u00e5mindelse',{body:msg,icon:'/favicon.ico'});
+        alert('P\u00e5mindelse sendt til '+unanswered.length+' spiller(e) der ikke har svaret.');
+      } else {
+        alert('Notifikation ikke tilladt. P\u00e5mindelsesbeskeden ville lyde:\n\n'+msg+'\n\nSendes til: '+unanswered.map(function(p){return p.name;}).join(', '));
+      }
+    });
+  } else {
+    alert('P\u00e5mindelsesbeskeden:\n\n'+msg+'\n\nSendes til: '+unanswered.map(function(p){return p.name;}).join(', '));
+  }
+};
 
 function rKonto(){
   var p=STATE.profile;
