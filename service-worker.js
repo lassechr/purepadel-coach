@@ -1,11 +1,9 @@
-var CACHE_NAME = 'purepadel-v9';
+var CACHE_NAME = 'purepadel-v10';
 
-// On install: skip waiting so new SW activates immediately
 self.addEventListener('install', function(event) {
   self.skipWaiting();
 });
 
-// On activate: delete ALL old caches
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
@@ -19,10 +17,8 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Fetch: network first, no caching of HTML
 self.addEventListener('fetch', function(event) {
   var url = event.request.url;
-  // Never cache the main HTML page
   if (event.request.mode === 'navigate' || url.endsWith('/') || url.endsWith('index.html')) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' }).catch(function() {
@@ -34,16 +30,17 @@ self.addEventListener('fetch', function(event) {
   event.respondWith(fetch(event.request));
 });
 
-// Push notifications
 self.addEventListener('push', function(event) {
   var data = {};
-  try { data = event.data.json(); } catch(e) { data = { title: 'PurePadel', body: event.data ? event.data.text() : '' }; }
-  var title = data.title || 'PurePadel';
+  try { data = event.data.json(); } catch(e) {
+    data = { title: 'PurePadel Coach', body: event.data ? event.data.text() : '' };
+  }
+  var title = data.title || 'PurePadel Coach';
   var options = {
     body: data.body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    data: data.url || '/',
+    data: { url: data.url || '/', eventId: data.eventId || null },
     vibrate: [200, 100, 200]
   };
   event.waitUntil(self.registration.showNotification(title, options));
@@ -51,5 +48,26 @@ self.addEventListener('push', function(event) {
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  event.waitUntil(clients.openWindow(event.notification.data || '/'));
+  var notifData = event.notification.data || {};
+  var targetUrl = notifData.url || '/';
+  var eventId = notifData.eventId;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      // If app is already open, focus it and send message
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        if ('focus' in client) {
+          client.focus();
+          if (eventId) {
+            client.postMessage({ type: 'OPEN_EVENT', eventId: eventId });
+          }
+          return;
+        }
+      }
+      // Otherwise open new window
+      var openUrl = eventId ? '/?event=' + eventId : targetUrl;
+      return clients.openWindow(openUrl);
+    })
+  );
 });

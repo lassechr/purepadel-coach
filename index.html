@@ -423,7 +423,13 @@ function loadAll() {
     }
     return Promise.resolve();
   }).then(function(){
-    STATE.loading = false; render();
+    STATE.loading = false;
+    if(STATE.pendingOpenEvent){
+      STATE.openEvent=STATE.pendingOpenEvent;
+      STATE.tab='hold';
+      STATE.pendingOpenEvent=null;
+    }
+    render();
   }).catch(function(err){
     console.error('loadAll fejl:', err);
     STATE.loading = false; render();
@@ -540,6 +546,7 @@ function render() {
   else if(STATE.modal==='edit_team') html += rTeamModal();
   else if(STATE.modal==='edit_event') html += rEventModal();
   else if(STATE.modal==='edit_user') html += rEditUserModal();
+  else if(STATE.modal==='add_login') html += rAddLoginModal();
 
   app.innerHTML = html;
 }
@@ -778,7 +785,8 @@ function rPlayers() {
   if(STATE.showImp){
     html+='<div class="card" style="margin-bottom:16px;">';
     html+='<div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:10px;">Importer fra Excel</div>';
-    html+='<div style="font-size:12px;color:#888;margin-bottom:10px;">Kolonner: <strong>Navn</strong> | <strong>Niveau</strong> (1-5) | <strong>Side</strong> | <strong>Noter</strong></div>';
+    html+='<div style="font-size:12px;color:#888;margin-bottom:10px;">Kolonner: <strong>Navn</strong> | <strong>Email</strong> (valgfri) | <strong>Niveau</strong> (1-5) | <strong>Side</strong> | <strong>Noter</strong></div>';
+    html+='<div style="font-size:11px;color:#aaa;margin-bottom:8px;">Har en spiller email tilf\u00f8jes login automatisk og de modtager velkomstmail.</div>';
     html+='<textarea class="paste-area" id="ppPaste" oninput="parseImp()" placeholder="Kopier fra Excel og indsæt her..."></textarea>';
     if(STATE.irows.length){
       html+='<div style="margin-top:10px;">';
@@ -840,6 +848,14 @@ function rPlayers() {
     html+='<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center;">'+stars(p.level);
     html+='<span class="ptag" style="color:'+si2.color+';background:'+si2.bg+';border-color:'+si2.border+';">'+si2.label+'</span>';
     if(p.notes) html+='<span class="ptag" style="color:#b7770d;background:#fef9e7;border-color:#f9e79f;">'+esc(p.notes)+'</span>';
+    // Show login status
+    if(canManage){
+      if(p.profile_id){
+        html+='<span style="font-size:10px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf;border-radius:4px;padding:1px 6px;">&#10003; Login</span>';
+      } else {
+        html+='<span style="font-size:10px;background:#fdecea;color:#c0392b;border:1px solid #f5b7b1;border-radius:4px;padding:1px 6px;cursor:pointer;" onclick="openAddLoginModal(\''+p.id+'\',\''+esc(p.name)+'\')">+ Tilf&#248;j login</span>';
+      }
+    }
     html+='</div>';
     // Team membership for club_admin and superadmin
     if(canManage){
@@ -2455,6 +2471,76 @@ function rMineTraening(){
   return html;
 }
 
+function rAddLoginModal(){
+  var d=STATE.addLoginData||{};
+  return '<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">'
+    +'<div class="modal-title">Tilf\u00f8j login til spiller</div>'
+    +'<div class="modal-sub">'+esc(d.name||'')+'</div>'
+    +'<div class="fg"><label class="flabel">Email</label><input class="finput" id="alEmail" type="email" placeholder="spiller@email.dk"></div>'
+    +'<div class="fg"><label class="flabel">Password</label><input class="finput" id="alPw" type="text" placeholder="Mindst 6 tegn"></div>'
+    +'<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;">'
+    +'<input type="checkbox" id="alSendMail" checked style="width:16px;height:16px;">'
+    +'<span style="font-size:13px;">Send velkomst-email med login-oplysninger</span>'
+    +'</label>'
+    +'<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="saveAddLogin()">Opret login</button></div>'
+    +'</div></div>';
+}
+
+window.openAddLoginModal=function(playerId,playerName){
+  STATE.addLoginData={playerId:playerId,name:playerName};
+  STATE.modal='add_login';
+  render();
+};
+
+window.saveAddLogin=function(){
+  var d=STATE.addLoginData||{};
+  var email=((document.getElementById('alEmail')||{}).value||'').trim();
+  var pw=((document.getElementById('alPw')||{}).value||'').trim();
+  var sendMail=document.getElementById('alSendMail')&&document.getElementById('alSendMail').checked;
+  if(!email){alert('Angiv en email');return;}
+  if(pw.length<6){alert('Password skal v\u00e6re mindst 6 tegn');return;}
+  var cid=clubId();
+  sbFetch('POST','/auth/v1/signup',{email:email,password:pw},null).then(function(data){
+    if(data.id||(data.user&&data.user.id)){
+      var uid=data.id||data.user.id;
+      sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{
+        name:d.name,role:'player',club_id:cid,status:'active',notify_push:true,notify_email:true
+      },SB_KEY).then(function(){
+        // Link to existing players entry
+        sbPatch('players',{profile_id:uid},'id=eq.'+d.playerId).then(function(){
+          if(sendMail){
+            var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+              +'<h2>Velkommen til PurePadel!</h2>'
+              +'<p>Din konto er oprettet. Log ind med:</p>'
+              +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
+              +'<strong>Email:</strong> '+email+'<br><strong>Password:</strong> '+pw+'</div>'
+              +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
+              +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+            sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet.\n\nEmail: '+email+'\nPassword: '+pw+'\n\nLog ind p\u00e5: https://coach.purepadel.dk',emailHtml);
+          }
+          closeModal();
+          loadPlayers().then(render);
+        });
+      });
+    } else {
+      if(data.code==='user_already_exists'||data.message==='User already registered'){
+        // Email exists - find the profile and link it
+        sbGet('profiles','email=eq.'+encodeURIComponent(email)).then(function(prof){
+          if(Array.isArray(prof)&&prof.length){
+            sbPatch('players',{profile_id:prof[0].id},'id=eq.'+d.playerId).then(function(){
+              closeModal();loadPlayers().then(render);
+            });
+          } else {
+            alert('Email er allerede i brug af en anden bruger.');
+          }
+        });
+      } else {
+        alert('Fejl: '+(data.message||data.error||JSON.stringify(data)));
+      }
+    }
+  });
+};
+
 function rKonto(){
   var p=STATE.profile;
   var days=daysLeft(p.subscription_expires);
@@ -2991,10 +3077,24 @@ function saveSubscription(sub){
   });
 }
 
-// Register SW on load
+// Register SW on load and listen for messages
 if('serviceWorker' in navigator){
   registerServiceWorker();
+  navigator.serviceWorker.addEventListener('message', function(event){
+    if(event.data&&event.data.type==='OPEN_EVENT'){
+      STATE.openEvent=event.data.eventId;
+      STATE.tab='hold';
+      render();
+    }
+  });
 }
+
+// Check for event URL param on startup
+(function(){
+  var params=new URLSearchParams(window.location.search);
+  var evId=params.get('event');
+  if(evId){STATE.pendingOpenEvent=evId;}
+})();
 
 function rCaptainEventDetail(ev,responses){
   var yes=responses.filter(function(r){return r.response==='yes';});
@@ -3343,14 +3443,24 @@ window.parseImp=function(){
   var raw=(document.getElementById('ppPaste')||{}).value||'';
   if(!raw.trim()){STATE.irows=[];render();return;}
   var rows=raw.trim().split('\n');var parsed=[];
-  var si=(rows[0]&&rows[0].split('\t')[0].toLowerCase()==='navn')?1:0;
+  var firstRow=rows[0]?rows[0].split('\t'):[];
+  var hasHeader=firstRow[0]&&firstRow[0].toLowerCase()==='navn';
+  var si=hasHeader?1:0;
+  // Detect if 2nd column is email or level
+  var hasEmail=hasHeader&&firstRow[1]&&firstRow[1].toLowerCase()==='email';
+  var sm={hojre:'hojre',right:'hojre',venstre:'venstre',left:'venstre',begge:'begge',both:'begge',alle:'begge','':'begge'};
   for(var i=si;i<rows.length;i++){
     var r=rows[i].split('\t');var nm=(r[0]||'').trim();if(!nm)continue;
-    var lv=Math.min(5,Math.max(1,parseInt(r[1])||3));
-    var sm={hojre:'hojre',right:'hojre',venstre:'venstre',left:'venstre',begge:'begge',both:'begge',alle:'begge','':'begge'};
-    var sd=(r[2]||'').toLowerCase().trim().replace(/ø/g,'o');
-    var errs=[];if(!nm)errs.push('Navn mangler');
-    parsed.push({name:nm,level:lv,side:sm[sd]||'begge',notes:(r[3]||'').trim(),errs:errs});
+    var email='',levelCol=1,sideCol=2,notesCol=3;
+    if(hasEmail){email=(r[1]||'').trim();levelCol=2;sideCol=3;notesCol=4;}
+    // Also auto-detect email by @ sign
+    else if(r[1]&&r[1].indexOf('@')>0){email=r[1].trim();levelCol=2;sideCol=3;notesCol=4;}
+    var lv=Math.min(5,Math.max(1,parseInt(r[levelCol])||3));
+    var sd=(r[sideCol]||'').toLowerCase().trim().replace(/ø/g,'o');
+    var errs=[];
+    if(!nm)errs.push('Navn mangler');
+    if(email&&email.indexOf('@')<0)errs.push('Ugyldig email');
+    parsed.push({name:nm,email:email,level:lv,side:sm[sd]||'begge',notes:(r[notesCol]||'').trim(),errs:errs});
   }
   STATE.irows=parsed;render();
   setTimeout(function(){var el=document.getElementById('ppPaste');if(el)el.value=raw;},0);
@@ -3359,10 +3469,35 @@ window.parseImp=function(){
 window.doImp=function(){
   var ok=STATE.irows.filter(function(p){return!p.errs.length;});
   if(!ok.length)return;
-  Promise.all(ok.map(function(p){return sbPost('players',{club_id:clubId(),name:p.name,level:p.level,side:p.side,notes:p.notes});}))
-  .then(function(){
+  var cid=clubId();
+  var withEmail=ok.filter(function(p){return p.email;});
+  var withoutEmail=ok.filter(function(p){return !p.email;});
+  var promises=[];
+  // Players without email - just create players entry
+  for(var i=0;i<withoutEmail.length;i++){
+    promises.push(sbPost('players',{club_id:cid,name:withoutEmail[i].name,level:withoutEmail[i].level,side:withoutEmail[i].side,notes:withoutEmail[i].notes}));
+  }
+  // Players with email - create auth + profile + players
+  var emailPromises=withEmail.map(function(p){
+    var pw=Math.random().toString(36).substr(2,8); // random password
+    return sbFetch('POST','/auth/v1/signup',{email:p.email,password:pw},null).then(function(data){
+      if(data.id||(data.user&&data.user.id)){
+        var uid=data.id||data.user.id;
+        return sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{name:p.name,role:'player',club_id:cid,status:'active',notify_push:true,notify_email:true},SB_KEY).then(function(){
+          return sbPost('players',{club_id:cid,name:p.name,level:p.level,side:p.side,notes:p.notes,profile_id:uid}).then(function(){
+            // Send welcome email
+            var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'              +'<h2>Velkommen til PurePadel!</h2>'              +'<p>Din konto er oprettet. Log ind med:</p>'              +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'              +'<strong>Email:</strong> '+p.email+'<br><strong>Password:</strong> '+pw+'</div>'              +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'              +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+            sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet.\n\nEmail: '+p.email+'\nPassword: '+pw+'\n\nLog ind p\u00e5: https://coach.purepadel.dk',emailHtml);
+          });
+        });
+      }
+      // Email already exists - just create players entry without login
+      return sbPost('players',{club_id:cid,name:p.name,level:p.level,side:p.side,notes:p.notes});
+    });
+  });
+  Promise.all(promises.concat(emailPromises)).then(function(){
     STATE.irows=[];STATE.showImp=false;
-    loadPlayers().then(function(){render();setTimeout(function(){var el=document.getElementById('impOk');if(el){el.style.display='block';el.textContent='✓ '+ok.length+' spillere importeret!';}},50);});
+    loadPlayers().then(function(){render();setTimeout(function(){var el=document.getElementById('impOk');if(el){el.style.display='block';el.textContent='\u2713 '+ok.length+' spillere importeret'+(withEmail.length?' ('+withEmail.length+' med login)':'')+'!';}},50);});
   });
 };
 
@@ -3470,7 +3605,7 @@ window.saveNotifyPref=function(type,val){
   });
 };
 
-function sendPushToPlayer(profileId,title,body){
+function sendPushToPlayer(profileId,title,body,eventId){
   sbGet('profiles','id=eq.'+profileId).then(function(data){
     if(!Array.isArray(data)||!data.length)return;
     var prof=data[0];
@@ -3481,7 +3616,7 @@ function sendPushToPlayer(profileId,title,body){
     xhr.setRequestHeader('Content-Type','application/json');
     xhr.setRequestHeader('Authorization','Bearer '+tok);
     xhr.setRequestHeader('apikey',SB_KEY);
-    xhr.send(JSON.stringify({player_id:profileId,title:title,body:body}));
+    xhr.send(JSON.stringify({player_id:profileId,title:title,body:body,eventId:eventId||null,url:'https://coach.purepadel.dk'+(eventId?'?event='+eventId:'')}));
   });
 }
 
@@ -3495,8 +3630,8 @@ function sendEmailToPlayer(profileId,subject,text,html){
   xhr.send(JSON.stringify({player_id:profileId,subject:subject,text:text,html:html||null}));
 }
 
-function notifyPlayer(profileId,title,body,emailSubject,emailHtml){
-  sendPushToPlayer(profileId,title,body);
+function notifyPlayer(profileId,title,body,emailSubject,emailHtml,eventId){
+  sendPushToPlayer(profileId,title,body,eventId);
   sendEmailToPlayer(profileId,emailSubject||title,body,emailHtml||null);
 }
 
