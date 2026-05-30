@@ -6,6 +6,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="PurePadel">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-512.png">
 <title>PurePadel Coach</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -560,6 +566,7 @@ function rLogin() {
     +'<input class="login-input" id="loginPw" type="password" placeholder="••••••••" onkeydown="if(event.key===\'Enter\')doLogin()">'
     +'<button class="login-btn" onclick="doLogin()">Log ind</button>'
     +'<div class="login-err" id="loginErr"></div>'
+    +'<div style="text-align:center;margin-top:10px;"><span style="font-size:13px;color:#888;cursor:pointer;text-decoration:underline;" onclick="doForgotPassword()">Glemt password?</span></div>'
     +'<div style="text-align:center;margin-top:16px;font-size:13px;color:#888;">Ny spiller? <span style="color:#111;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="STATE.showRegister=true;STATE.visibleClubs=null;render()">Opret konto her</span></div>'
     +'</div></div>';
 }
@@ -582,21 +589,27 @@ function rExpired() {
 // ── ADMIN BOARD ──────────────────────────────────────────────
 function rAdmin() {
   var profiles = STATE.allProfiles;
-  var active = profiles.filter(function(p){return p.role!=='superadmin'&&daysLeft(p.subscription_expires)>=0;});
+  var trainersAndClubs = profiles.filter(function(p){return p.role==='trainer'||p.role==='club_admin';});
+  var active = trainersAndClubs.filter(function(p){return daysLeft(p.subscription_expires)>=0;});
   var expiring = active.filter(function(p){var d=daysLeft(p.subscription_expires);return d>=0&&d<30;});
-  var expired = profiles.filter(function(p){return p.role!=='superadmin'&&daysLeft(p.subscription_expires)<0;});
+  var expired = trainersAndClubs.filter(function(p){return daysLeft(p.subscription_expires)<0;});
+  var players = profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
 
   var html = '<div class="sec-head"><div class="sec-title">Admin Board</div>'
     +'<button class="btn btn-dark" onclick="openModal(\'add_user\')">+ Opret bruger</button></div>';
 
   // Stats
   html += '<div class="stat-grid">';
-  html += '<div class="stat-card"><div class="stat-num">'+active.length+'</div><div class="stat-lbl">Aktive</div></div>';
-  html += '<div class="stat-card"><div class="stat-num" style="color:#b7770d;">'+expiring.length+'</div><div class="stat-lbl">Udløber snart</div></div>';
-  html += '<div class="stat-card"><div class="stat-num" style="color:#c0392b;">'+expired.length+'</div><div class="stat-lbl">Udløbet</div></div>';
+  html += '<div class="stat-card"><div class="stat-num">'+active.length+'</div><div class="stat-lbl">Aktive trænere/foreninger</div></div>';
+  html += '<div class="stat-card"><div class="stat-num" style="color:#b7770d;">'+expiring.length+'</div><div class="stat-lbl">Udl\u00f8ber inden 30 dage</div></div>';
+  html += '<div class="stat-card"><div class="stat-num" style="color:#c0392b;">'+expired.length+'</div><div class="stat-lbl">Udl\u00f8bet abonnement</div></div>';
+  html += '</div>';
+  html += '<div class="stat-grid" style="margin-top:-8px;">';
+  html += '<div class="stat-card"><div class="stat-num" style="color:#1e8449;">'+players.length+'</div><div class="stat-lbl">Aktive spillere</div></div>';
+  html += '<div class="stat-card"><div class="stat-num" style="color:#888;">'+profiles.filter(function(p){return p.role==='player'&&p.status==='pending';}).length+'</div><div class="stat-lbl">Afventende spillere</div></div>';
+  html += '<div class="stat-card"><div class="stat-num" style="color:#888;">'+profiles.filter(function(p){return p.role==='player';}).length+'</div><div class="stat-lbl">Spillere i alt</div></div>';
   html += '</div>';
 
-  // Pending players section
   var pendingPlayers=profiles.filter(function(p){return p.role==='player'&&p.status==='pending';});
   var allPlayerProfiles=profiles.filter(function(p){return p.role==='player';});
   if(pendingPlayers.length){
@@ -1197,13 +1210,17 @@ function rAddUserModal(){
     +'<div class="modal-sub">Brugeren modtager login-oplysninger via email</div>'
     +'<div class="fg"><label class="flabel">Navn</label><input class="finput" id="uN" placeholder="Fornavn Efternavn"></div>'
     +'<div class="fg"><label class="flabel">Email</label><input class="finput" id="uE" type="email" placeholder="email@forening.dk"></div>'
-    +'<div class="fg"><label class="flabel">Password</label><input class="finput" id="uP" type="text" placeholder="Vælg et password"></div>'
+    +'<div class="fg"><label class="flabel">Password</label><input class="finput" id="uP" type="text" placeholder="V\u00e6lg et password"></div>'
     +'<div class="fg"><label class="flabel">Foreningsnavn</label><input class="finput" id="uCN" placeholder="Fx SHI Padel"></div>'
-    +'<div class="fg"><label class="flabel">Forenings-ID (unikt)</label><input class="finput" id="uCI" placeholder="fx shi-padel (ingen mellemrum)"></div>'
     +'<div class="frow">'
-    +'<div><label class="flabel">Type</label><select class="finput" id="uT"><option value="trainer">Træner</option><option value="club">Forening</option></select></div>'
-    +'<div><label class="flabel">Abonnement udløber</label><input class="finput" id="uExp" type="date"></div>'
+    +'<div><label class="flabel">Type</label><select class="finput" id="uT"><option value="trainer">Tr\u00e6ner</option><option value="club">Forening</option><option value="player">Spiller</option></select></div>'
+    +'<div><label class="flabel">Abonnement udl\u00f8ber</label><input class="finput" id="uExp" type="date"></div>'
     +'</div>'
+    +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:6px;">'
+    +'<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">'
+    +'<input type="checkbox" id="uSendMail" checked style="width:16px;height:16px;cursor:pointer;">'
+    +'<div style="font-size:13px;font-weight:500;">Send velkomst-email med login-oplysninger</div>'
+    +'</label></div>'
     +'<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="createUser()">Opret bruger</button></div>'
     +'</div></div>';
 }
@@ -2108,16 +2125,48 @@ function rPlayerApp(){
   // Notification preferences
   html+='<div style="margin-top:24px;background:#f9f9f9;border:1px solid #eee;border-radius:12px;padding:16px;">';
   html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Notifikationer</div>';
-  // Push
-  var pushOn=p.notify_push!==false;
+
+  // Detect browser/OS
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  var isChrome=/Chrome/.test(navigator.userAgent)&&!/Chromium|Edge/.test(navigator.userAgent);
+  var isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   var notifGranted='Notification' in window&&Notification.permission==='granted';
+  var pushSupported='PushManager' in window;
+
+  // Browser guidance box
+  if(isIOS&&isChrome){
+    html+='<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">';
+    html+='<strong>&#9888; Chrome p\u00e5 iPhone/iPad understøtter ikke push</strong><br>';
+    html+='Du modtager notifikationer via <strong>email</strong>.<br>';
+    html+='Vil du have push? \u00c5bn siden i <strong>Safari</strong> og tilf\u00f8j den til din hjemmeskærm:<br>';
+    html+='Del-ikon &#8594; "F\u00f8j til hjemmeskærm" &#8594; \u00c5bn appen derfra.';
+    html+='</div>';
+  } else if(isIOS&&!isSafari){
+    html+='<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">';
+    html+='<strong>&#9888; Push kræver Safari p\u00e5 iPhone/iPad</strong><br>';
+    html+='\u00c5bn siden i Safari og tilf\u00f8j til hjemmeskærmen for at f\u00e5 push-notifikationer.';
+    html+='</div>';
+  } else if(isIOS&&isSafari&&!pushSupported){
+    html+='<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">';
+    html+='<strong>&#9888; Tilf\u00f8j til hjemmeskærm for push</strong><br>';
+    html+='Del-ikon &#8594; "F\u00f8j til hjemmeskærm" &#8594; \u00c5bn appen derfra.';
+    html+='</div>';
+  }
+
+  // Push toggle
+  var pushOn=p.notify_push!==false;
   html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;">';
   html+='<div><div style="font-size:13px;font-weight:500;">Push-notifikationer</div>';
-  html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+(notifGranted?'Aktiveret i browser':'Ikke aktiveret i browser')+'</div></div>';
+  html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">';
+  if(!pushSupported){html+='Ikke understøttet i denne browser';}
+  else if(notifGranted){html+='Aktiveret i browser';}
+  else{html+='Ikke aktiveret i browser';}
+  html+='</div></div>';
   html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
-  html+='<input type="checkbox" '+(pushOn?'checked':'')+' onchange="saveNotifyPref(\'push\',this.checked)" style="width:18px;height:18px;cursor:pointer;">';
+  html+='<input type="checkbox" '+(pushOn&&pushSupported?'checked':'')+' '+(pushSupported?'':'disabled')+' onchange="saveNotifyPref(\'push\',this.checked)" style="width:18px;height:18px;cursor:pointer;">';
   html+='</label></div>';
-  // Email
+
+  // Email toggle
   var emailOn=p.notify_email!==false;
   html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">';
   html+='<div><div style="font-size:13px;font-weight:500;">Email-notifikationer</div>';
@@ -2125,7 +2174,8 @@ function rPlayerApp(){
   html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
   html+='<input type="checkbox" '+(emailOn?'checked':'')+' onchange="saveNotifyPref(\'email\',this.checked)" style="width:18px;height:18px;cursor:pointer;">';
   html+='</label></div>';
-  if(!notifGranted&&pushOn){
+
+  if(pushSupported&&!notifGranted&&pushOn){
     html+='<button onclick="enablePush()" style="width:100%;margin-top:10px;padding:10px;background:#111;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">&#128276; Aktiv\u00e9r push i browser</button>';
   }
   html+='</div>';
@@ -2322,7 +2372,13 @@ function subscribeToPush(){
 }
 
 window.enablePush=function(){
-  if(!('Notification' in window)){alert('Din browser understøtter ikke notifikationer');return;}
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  var isChrome=/Chrome/.test(navigator.userAgent)&&!/Chromium|Edge/.test(navigator.userAgent);
+  if(isIOS&&isChrome){
+    alert('Chrome p\u00e5 iPhone/iPad underst\u00f8tter ikke push-notifikationer.\n\nBrug i stedet:\n\u2022 Email-notifikationer (allerede aktiveret)\n\u2022 Eller \u00e5bn siden i Safari og tilf\u00f8j til hjemmeskærmen');
+    return;
+  }
+  if(!('Notification' in window)){alert('Din browser underst\u00f8tter ikke notifikationer');return;}
   if(Notification.permission==='granted'){
     subscribeToPush();
     alert('Notifikationer er allerede aktiveret!');
@@ -2333,7 +2389,7 @@ window.enablePush=function(){
       subscribeToPush();
       render();
     } else {
-      alert('Du har blokeret notifikationer.\nGå til browserindstillinger for at slå dem til.');
+      alert('Du har blokeret notifikationer.\nG\u00e5 til browserindstillinger for at sl\u00e5 dem til.');
     }
   });
 };
@@ -2354,6 +2410,20 @@ function saveSubscription(sub){
 if('serviceWorker' in navigator){
   registerServiceWorker();
 }
+
+window.doForgotPassword=function(){
+  var email=prompt('Indtast din email-adresse:');
+  if(!email)return;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',SB_URL+'/auth/v1/recover',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('apikey',SB_KEY);
+  xhr.onload=function(){
+    alert('Hvis emailen findes i systemet, modtager du snart et link til at nulstille dit password.');
+  };
+  xhr.onerror=function(){alert('Noget gik galt. Pr\u00f8v igen.');};
+  xhr.send(JSON.stringify({email:email}));
+};
 
 window.doLogin=function(){
   var email=(document.getElementById('loginEmail')||{}).value||'';
@@ -2778,37 +2848,60 @@ window.createUser=function(){
   var email=(document.getElementById('uE')||{}).value||'';
   var pw=(document.getElementById('uP')||{}).value||'';
   var clubName=(document.getElementById('uCN')||{}).value||'';
-  var cid=(document.getElementById('uCI')||{}).value||'';
   var type=(document.getElementById('uT')||{}).value||'trainer';
   var exp=(document.getElementById('uExp')||{}).value||'';
-  if(!email||!pw){alert('Email og password er påkrævet');return;}
-  if(pw.length<6){alert('Password skal være mindst 6 tegn');return;}
+  var sendMail=document.getElementById('uSendMail')&&document.getElementById('uSendMail').checked;
+  if(!email||!pw){alert('Email og password er p\u00e5kr\u00e6vet');return;}
+  if(pw.length<6){alert('Password skal v\u00e6re mindst 6 tegn');return;}
   sbFetch('POST','/auth/v1/signup',{email:email,password:pw},null)
   .then(function(data){
     if(data.id||(data.user&&data.user.id)){
       var uid=data.id||data.user.id;
-      // Use anon key directly to update profile (new user not logged in yet)
-      return sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{
-        name:name,
-        role:type==='club'?'club_admin':'trainer',
-        club_id:cid||email.split('@')[0].replace(/[^a-z0-9]/gi,'-'),
+      var role=type==='club'?'club_admin':type==='player'?'player':'trainer';
+      var profileData={
+        name:name||email,
+        role:role,
         club_name:clubName||name,
-        subscription_type:type,
-        subscription_expires:exp||'2099-12-31'
-      }, SB_KEY);
+        subscription_type:type==='player'?'player':type,
+        subscription_expires:exp||(type==='player'?null:'2099-12-31'),
+        status:type==='player'?'active':null
+      };
+      // For club_admin set club_id to their own profile id
+      return sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid, profileData, SB_KEY).then(function(){
+        if(type==='player'){
+          // Create players entry too
+          sbPost('players',{club_id:clubId(),name:name||email,level:3,side:'begge',notes:'',profile_id:uid});
+        }
+        if(sendMail){
+          var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+            +'<h2 style="color:#111;">Velkommen til PurePadel Coach</h2>'
+            +'<p>Din konto er oprettet. Her er dine login-oplysninger:</p>'
+            +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
+            +'<strong>Email:</strong> '+email+'<br>'
+            +'<strong>Password:</strong> '+pw
+            +'</div>'
+            +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
+            +'<p style="color:#888;font-size:12px;margin-top:20px;">Husk at skifte dit password efter f\u00f8rste login.<br>PurePadel Coach</p></div>';
+          sendEmailToPlayer(uid,'Velkommen til PurePadel Coach','Din konto er oprettet p\u00e5 coach.purepadel.dk\n\nEmail: '+email+'\nPassword: '+pw,emailHtml);
+        }
+        return Promise.resolve();
+      });
     } else {
-      alert('Fejl: '+(data.message||data.error_description||data.error||JSON.stringify(data)));
+      if(data.code==='user_already_exists'||data.message==='User already registered'){
+        alert('Email er allerede i brug. Slet brugeren f\u00f8rst eller brug en anden email.');
+      } else {
+        alert('Fejl: '+(data.message||data.error_description||data.error||JSON.stringify(data)));
+      }
       return Promise.reject('failed');
     }
   }).then(function(){
     closeModal();
-    alert('Bruger oprettet!\nLogin: '+email+'\nPassword: '+pw);
     loadAllProfiles().then(render);
-  }).catch(function(e){if(e!=='failed')alert('Noget gik galt – prøv igen');});
+  }).catch(function(e){if(e!=='failed')alert('Noget gik galt \u2013 pr\u00f8v igen');});
 };
 
 window.renewUser=function(id){
-  var months=prompt('Forny med hvor mange måneder?','6');
+  var months=prompt('Forny med hvor mange m\u00e5neder?','6');
   if(!months)return;
   var m=parseInt(months)||6;
   var existing=STATE.allProfiles.filter(function(p){return p.id===id;})[0];
@@ -2819,8 +2912,17 @@ window.renewUser=function(id){
 };
 
 window.deleteUser=function(id){
-  if(!confirm('Deaktiver denne bruger?'))return;
-  sbPatch('profiles',{subscription_expires:'2000-01-01'},'id=eq.'+id).then(function(){loadAllProfiles().then(render);});
+  if(!confirm('Slet bruger permanent? Handlingen kan ikke fortrydes.'))return;
+  // Delete players entry first, then profile (trigger deletes auth.users)
+  sbDelete('players','profile_id=eq.'+id).then(function(){
+    sbDelete('team_members','player_id=eq.'+id).then(function(){
+      sbDelete('push_subscriptions','player_id=eq.'+id).then(function(){
+        sbDelete('profiles','id=eq.'+id).then(function(){
+          loadAllProfiles().then(render);
+        });
+      });
+    });
+  });
 };
 
 window.makeMasterDrill=function(id){
