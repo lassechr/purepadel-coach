@@ -166,6 +166,7 @@ var STATE = {
   teams: [], events: [], eventResponses: [],
   editTeam: null, editEvent: null, openEvent: null,
   openTeam: null, teamMembersCache: {},
+  reserveInvite: null,
   teamFilter: 'all',
   editUserProfile: null
 };
@@ -865,7 +866,8 @@ function rPlayers() {
         html+='<select onchange="addPlayerToTeam(this,\''+p.id+'\')" style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:2px 6px;color:#888;background:#fff;cursor:pointer;">';
         html+='<option value="">+ Tilf\u00f8j til hold</option>';
         for(var ai=0;ai<availTeams.length;ai++){
-          html+='<option value="'+availTeams[ai].id+'">'+esc(availTeams[ai].name)+'</option>';
+          html+='<option value="'+availTeams[ai].id+'|fast">'+esc(availTeams[ai].name)+' (Fast)</option>';
+          html+='<option value="'+availTeams[ai].id+'|reserve">'+esc(availTeams[ai].name)+' (Reserve)</option>';
         }
         html+='</select>';
       }
@@ -1422,7 +1424,7 @@ function rHold(){
     if(isTeamOpen){
       var teamMemberData=STATE.teamMembersCache&&STATE.teamMembersCache[team.id];
       html+='<div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;background:#fafafa;">';
-      html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Spillere p&#229; holdet</div>';
+
       if(!teamMemberData){
         html+='<div style="font-size:13px;color:#aaa;">Henter...</div>';
         setTimeout(function(tid){return function(){
@@ -1432,28 +1434,58 @@ function rHold(){
             render();
           });
         };}(team.id),10);
-      } else if(!teamMemberData.length){
-        html+='<div style="font-size:13px;color:#aaa;">Ingen spillere tilknyttet endnu</div>';
       } else {
-        for(var mi=0;mi<teamMemberData.length;mi++){
-          var mem=teamMemberData[mi];
-          var pname=getPlayerName(mem.player_id);
-          var plevel=0;
-          for(var pli=0;pli<STATE.players.length;pli++){if(STATE.players[pli].id===mem.player_id){plevel=STATE.players[pli].level||0;break;}}
-          html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
-          html+='<div style="display:flex;align-items:center;gap:8px;">';
-          html+='<span style="font-size:13px;font-weight:500;color:#111;">'+esc(pname)+'</span>';
-          if(plevel)html+='<span style="color:#f5a623;font-size:11px;">'+'\u2605'.repeat(plevel)+'</span>';
-          html+='</div>';
-          if(canManageTeams){
-            html+='<button class="btn btn-red btn-sm" style="font-size:11px;padding:3px 8px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">Fjern</button>';
+        var regulars=teamMemberData.filter(function(m){return !m.is_reserve;});
+        var reserves=teamMemberData.filter(function(m){return m.is_reserve;});
+
+        html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Faste spillere ('+regulars.length+')</div>';
+        if(!regulars.length){
+          html+='<div style="font-size:13px;color:#aaa;margin-bottom:10px;">Ingen faste spillere</div>';
+        } else {
+          for(var mi=0;mi<regulars.length;mi++){
+            var mem=regulars[mi];
+            var pname=getPlayerName(mem.player_id);
+            var plevel=0;
+            for(var pli=0;pli<STATE.players.length;pli++){if(STATE.players[pli].profile_id===mem.player_id){plevel=STATE.players[pli].level||0;break;}}
+            html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
+            html+='<div style="display:flex;align-items:center;gap:8px;">';
+            html+='<span style="font-size:13px;font-weight:500;color:#111;">'+esc(pname)+'</span>';
+            if(plevel)html+='<span style="color:#f5a623;font-size:11px;">'+'\u2605'.repeat(plevel)+'</span>';
+            html+='</div>';
+            if(canManageTeams){
+              html+='<div style="display:flex;gap:4px;">';
+              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr; Reserve</button>';
+              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 6px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">Fjern</button>';
+              html+='</div>';
+            }
+            html+='</div>';
           }
-          html+='</div>';
+        }
+
+        html+='<div style="font-size:11px;font-weight:700;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin:12px 0 8px;">Reserver ('+reserves.length+')</div>';
+        if(!reserves.length){
+          html+='<div style="font-size:13px;color:#aaa;">Ingen reserver</div>';
+        } else {
+          for(var ri=0;ri<reserves.length;ri++){
+            var rmem=reserves[ri];
+            var rname=getPlayerName(rmem.player_id);
+            html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
+            html+='<div style="display:flex;align-items:center;gap:8px;">';
+            html+='<span style="font-size:13px;color:#888;">'+esc(rname)+'</span>';
+            html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 6px;">Reserve</span>';
+            html+='</div>';
+            if(canManageTeams){
+              html+='<div style="display:flex;gap:4px;">';
+              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;" onclick="toggleReserve(\''+rmem.id+'\',\''+team.id+'\',false)">&rarr; Fast</button>';
+              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 6px;" onclick="removeTeamMemberDirect(\''+rmem.id+'\',\''+team.id+'\')">Fjern</button>';
+              html+='</div>';
+            }
+            html+='</div>';
+          }
         }
       }
       html+='</div>';
     }
-
     if(!teamEvents.length){
       html+='<div style="padding:14px 16px;font-size:13px;color:#aaa;">Ingen begivenheder endnu</div>';
     } else {
@@ -1550,8 +1582,36 @@ function rEventDetail(ev,responses){
   // Actions
   html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">';
   html+='<button class="btn btn-dark btn-sm" onclick="sendReminder(\''+ev.id+'\')">Send p&#229;mindelse til ikke-svar</button>';
+  html+='<button class="btn btn-light btn-sm" onclick="showReserveInvite(\''+ev.id+'\')">Invit\u00e9r reserve</button>';
   html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Slet begivenhed</button>';
-  html+='</div></div>';
+  html+='</div>';
+
+  // Reserve invite panel
+  if(STATE.reserveInvite===ev.id){
+    var teamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
+    var reserves=teamMembers.filter(function(m){return m.is_reserve;});
+    if(!reserves.length){
+      html+='<div style="font-size:12px;color:#aaa;margin-top:8px;">Ingen reserver p\u00e5 dette hold</div>';
+    } else {
+      html+='<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;margin-top:8px;">';
+      html+='<div style="font-size:11px;font-weight:700;color:#b7770d;margin-bottom:8px;">V\u00e6lg reserve at invitere</div>';
+      for(var rri=0;rri<reserves.length;rri++){
+        var rr=reserves[rri];
+        var rrname=getPlayerName(rr.player_id);
+        var alreadyInvited=responses.some(function(r){return r.player_id===rr.player_id;});
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
+        html+='<span style="font-size:13px;">'+esc(rrname)+'</span>';
+        if(alreadyInvited){
+          html+='<span style="font-size:11px;color:#1e8449;">Allerede inviteret</span>';
+        } else {
+          html+='<button class="btn btn-dark btn-sm" onclick="inviteReserve(\''+ev.id+'\',\''+rr.player_id+'\')">Invit\u00e9r</button>';
+        }
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+  }
+  html+='</div>';
   return html;
 }
 
@@ -1659,23 +1719,22 @@ function rEventModal(){
 
 // ── HOLD ACTIONS ─────────────────────────────────────────────
 window.addPlayerToTeam=function(sel,playerId){
-  var teamId=sel.value;
-  if(!teamId)return;
+  var val=sel.value;
+  if(!val)return;
   sel.value='';
-  // Find profile_id for this player
+  var parts=val.split('|');
+  var teamId=parts[0];
+  var isReserve=parts[1]==='reserve';
   var profileId=null;
   for(var i=0;i<STATE.players.length;i++){
-    if(STATE.players[i].id===playerId){
-      profileId=STATE.players[i].profile_id;
-      break;
-    }
+    if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    alert('Denne spiller har intet login endnu.\nBed spilleren om at oprette sig på coach.purepadel.dk f\u00f8rst.');
+    alert('Denne spiller har intet login endnu.\nBed spilleren om at oprette sig p\u00e5 coach.purepadel.dk f\u00f8rst.');
     return;
   }
-  sbPost('team_members',{team_id:teamId,player_id:profileId}).then(function(res){
-    if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
+  sbPost('team_members',{team_id:teamId,player_id:profileId,is_reserve:isReserve}).then(function(res){
+    if(res&&res.code==='23505'){alert('Spilleren er allerede p\u00e5 dette hold.');return;}
     if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
     if(!STATE.teamMembersCache)STATE.teamMembersCache={};
     delete STATE.teamMembersCache[teamId];
@@ -1705,6 +1764,14 @@ function loadTeamMembersCache(){
   }).catch(function(){});
 }
 
+window.toggleReserve=function(memberId,teamId,makeReserve){
+  sbPatch('team_members',{is_reserve:makeReserve},'id=eq.'+memberId).then(function(){
+    if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+    delete STATE.teamMembersCache[teamId];
+    loadTeamMembersCache().then(render);
+  });
+};
+
 window.toggleTeam=function(id){
   STATE.openTeam=STATE.openTeam===id?null:id;
   // Clear cache for this team so it reloads fresh
@@ -1721,6 +1788,38 @@ window.removeTeamMemberDirect=function(memberId,teamId){
     render();
   });
 };
+window.showReserveInvite=function(evId){
+  STATE.reserveInvite=STATE.reserveInvite===evId?null:evId;
+  render();
+};
+
+window.inviteReserve=function(evId,profileId){
+  // Send push+email invitation to reserve player
+  var ev=null;
+  for(var i=0;i<STATE.events.length;i++)if(STATE.events[i].id===evId){ev=STATE.events[i];break;}
+  if(!ev)return;
+  var d=new Date(ev.date);
+  var dateStr=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+  var title='Invitation: '+ev.title;
+  var body='Du er inviteret som reserve til '+ev.title+' d. '+dateStr+'. Log ind og tilmeld dig.';
+  var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+    +'<h2>Du er inviteret!</h2>'
+    +'<p>Du er inviteret som <strong>reserve</strong> til:</p>'
+    +'<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:16px;margin:16px 0;">'
+    +'<strong>'+esc(ev.title)+'</strong><br>'
+    +dateStr+(ev.location?'<br>'+esc(ev.location):'')
+    +'</div>'
+    +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Se og tilmeld dig</a>'
+    +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+  notifyPlayer(profileId,title,body,title,emailHtml);
+  // Also create a placeholder response so they appear in the list
+  sbPost('event_responses',{event_id:evId,player_id:profileId,response:null,note:'Inviteret som reserve'}).then(function(){
+    loadEventResponses().then(render);
+  });
+  STATE.reserveInvite=null;
+  alert('Invitation sendt til '+getPlayerName(profileId));
+};
+
 window.openNewEvent=function(teamId){
   STATE.editEvent={team_id:teamId};
   STATE.modal='edit_event';
@@ -2101,8 +2200,23 @@ function rPlayerApp(){
 
   html+='<div style="padding:16px;">';
 
-  // My teams
+  // My teams overview
   var myTeams=STATE.playerTeams||[];
+  var myMemberships=STATE.playerTeamMemberships||[];
+  if(myTeams.length){
+    html+='<div style="margin-bottom:16px;">';
+    html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Mine hold</div>';
+    for(var ti=0;ti<myTeams.length;ti++){
+      var mt=myTeams[ti];
+      var mem=myMemberships.filter(function(m){return m.team_id===mt.id;})[0];
+      var isRes=mem&&mem.is_reserve;
+      html+='<div style="display:inline-flex;align-items:center;gap:6px;background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:6px 12px;margin-right:8px;margin-bottom:8px;">';
+      html+='<span style="font-size:13px;font-weight:500;">'+esc(mt.name)+'</span>';
+      if(isRes)html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 5px;">Reserve</span>';
+      html+='</div>';
+    }
+    html+='</div>';
+  }
   var myEvents=STATE.playerEvents||[];
   var myResponses=STATE.playerResponses||[];
   var now=new Date();
@@ -2218,6 +2332,7 @@ function rPlayerEventCard(ev,responses,isPast){
   html+='<div style="display:flex;align-items:start;justify-content:space-between;gap:8px;margin-bottom:8px;">';
   html+='<div>';
   html+='<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;border:1px solid;color:'+typeColor+';background:'+typeBg+';border-color:'+typeBorder+';">'+(isMatch?'Kamp':'Tr&#230;ning')+'</span>';
+  if(ev._isReserveInvite)html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:2px 8px;margin-left:4px;">Reserve-invitation</span>';
   if(isMatch&&ev.home_away){html+='<span style="font-size:10px;color:#888;margin-left:6px;">'+(ev.home_away==='home'?'Hjemme':'Ude')+'</span>';}
   html+='<div style="font-size:16px;font-weight:700;color:#111;margin-top:4px;">'+esc(ev.title)+'</div>';
   if(isMatch&&ev.opponent)html+='<div style="font-size:12px;color:#888;">vs '+esc(ev.opponent)+'</div>';
@@ -2320,25 +2435,50 @@ window.submitResponse=function(evId,response){
 
 function loadPlayerData(){
   var pid=STATE.profile.id;
-  var clubId=STATE.profile.club_id;
-  // Load club profile for logo
-  if(clubId){
-    sbGet('profiles','id=eq.'+clubId).then(function(data){
+  var cid=STATE.profile.club_id;
+  if(cid){
+    sbGet('profiles','id=eq.'+cid).then(function(data){
       if(Array.isArray(data)&&data.length)STATE.clubProfile=data[0];
     });
   }
-  // Load teams I'm on
   return sbGet('team_members','player_id=eq.'+pid).then(function(members){
-    if(!Array.isArray(members)||!members.length){STATE.playerTeams=[];STATE.playerEvents=[];STATE.playerResponses=[];return Promise.resolve();}
-    STATE.playerTeamMembers=members;
-    var teamIds=members.map(function(m){return m.team_id;});
-    return sbGet('teams','id=in.('+teamIds.join(',')+')').then(function(teams){
+    if(!Array.isArray(members)||!members.length){
+      STATE.playerTeams=[];STATE.playerTeamMemberships=[];
+      STATE.playerEvents=[];STATE.playerResponses=[];
+      return Promise.resolve();
+    }
+    STATE.playerTeamMemberships=members;
+    // Regular teams (not reserve)
+    var regularMemberships=members.filter(function(m){return !m.is_reserve;});
+    var regularTeamIds=regularMemberships.map(function(m){return m.team_id;});
+    return sbGet('teams','id=in.('+(regularTeamIds.length?regularTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
       STATE.playerTeams=Array.isArray(teams)?teams:[];
-      return sbGet('events','team_id=in.('+teamIds.join(',')+')&order=date');
+      // Load events from regular teams
+      if(!regularTeamIds.length){STATE.playerEvents=[];STATE.playerResponses=[];return Promise.resolve();}
+      return sbGet('events','team_id=in.('+regularTeamIds.join(',')+')&order=date');
     }).then(function(events){
       STATE.playerEvents=Array.isArray(events)?events:[];
-      if(!events||!events.length){STATE.playerResponses=[];return Promise.resolve();}
-      var evIds=events.map(function(e){return e.id;});
+      // Also load events player was specifically invited to as reserve
+      return sbGet('event_responses','player_id=eq.'+pid+'&response=is.null');
+    }).then(function(invitations){
+      if(Array.isArray(invitations)&&invitations.length){
+        var invitedEvIds=invitations.map(function(r){return r.event_id;});
+        return sbGet('events','id=in.('+invitedEvIds.join(',')+')&order=date').then(function(invEvs){
+          if(Array.isArray(invEvs)){
+            // Merge invited events (avoid duplicates)
+            var existingIds=STATE.playerEvents.map(function(e){return e.id;});
+            for(var ii=0;ii<invEvs.length;ii++){
+              if(existingIds.indexOf(invEvs[ii].id)<0){
+                invEvs[ii]._isReserveInvite=true;
+                STATE.playerEvents.push(invEvs[ii]);
+              }
+            }
+          }
+        });
+      }
+    }).then(function(){
+      if(!STATE.playerEvents.length){STATE.playerResponses=[];return Promise.resolve();}
+      var evIds=STATE.playerEvents.map(function(e){return e.id;});
       return sbGet('event_responses','event_id=in.('+evIds.join(',')+')'+'&player_id=eq.'+pid);
     }).then(function(resp){
       STATE.playerResponses=Array.isArray(resp)?resp:[];
