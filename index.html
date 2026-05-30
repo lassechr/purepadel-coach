@@ -1385,6 +1385,7 @@ function localDT(iso){
 function rHold(){
   var role=STATE.profile?STATE.profile.role:'';
   var canManageTeams=(role==='superadmin'||role==='club_admin');
+  var canSetCaptain=(role==='superadmin'||role==='club_admin'||role==='trainer');
   var allTeams=STATE.teams;
 
   // For trainers: only show teams they are members of
@@ -1496,11 +1497,13 @@ function rHold(){
           if(plevel)html+='<span style="color:#f5a623;font-size:11px;">'+'\u2605'.repeat(plevel)+'</span>';
           if(mem.is_captain)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 5px;">&#9733; Kaptajn</span>';
           html+='</div>';
-          if(canManageTeams){
+          if(canSetCaptain||canManageTeams){
             html+='<div style="display:flex;gap:3px;">';
-            html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')">'+(mem.is_captain?'&#9733;':'Kap.')+'</button>';
-            html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr;R</button>';
-            html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 5px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">&#10005;</button>';
+            html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;background:'+(mem.is_captain?'#e8f0fb':'')+';color:'+(mem.is_captain?'#1d6fb5':'')+'" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')">'+(mem.is_captain?'&#9733; Kap.':'Kap.')+'</button>';
+            if(canManageTeams){
+              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr;R</button>';
+              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 5px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">&#10005;</button>';
+            }
             html+='</div>';
           }
           html+='</div>';
@@ -1603,10 +1606,10 @@ function rHold(){
               html+='<span style="font-size:12px;font-weight:500;">'+esc(getPlayerName(smem.player_id))+'</span>';
               if(smem.is_captain)html+='<span style="font-size:10px;color:#1d6fb5;">&#9733; Kap.</span>';
               html+='</div>';
-              if(canManageTeams){
+              if(canSetCaptain||canManageTeams){
                 html+='<div style="display:flex;gap:3px;">';
-                html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:1px 5px;" onclick="toggleCaptain(\''+smem.id+'\',\''+sub.id+'\','+(smem.is_captain?'false':'true')+')">'+(smem.is_captain?'&#9733;':'Kap.')+'</button>';
-                html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:1px 5px;" onclick="removeTeamMemberDirect(\''+smem.id+'\',\''+sub.id+'\')">&#10005;</button>';
+                html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:1px 5px;background:'+(smem.is_captain?'#e8f0fb':'')+';color:'+(smem.is_captain?'#1d6fb5':'')+'" onclick="toggleCaptain(\''+smem.id+'\',\''+sub.id+'\','+(smem.is_captain?'false':'true')+')">'+(smem.is_captain?'&#9733; Kap.':'Kap.')+'</button>';
+                if(canManageTeams)html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:1px 5px;" onclick="removeTeamMemberDirect(\''+smem.id+'\',\''+sub.id+'\')">&#10005;</button>';
                 html+='</div>';
               }
               html+='</div>';
@@ -2381,7 +2384,7 @@ function rKonto(){
   var tb=p.subscription_type==='club'?'#e8f0fb':'#f5eef8';
   var tbo=p.subscription_type==='club'?'#b3cef0':'#d7bde2';
   var ac=acolor(p.id||'x');
-  var canUploadLogo=(p.role==='club_admin'||p.role==='trainer');
+  var canUploadLogo=(p.role==='club_admin');
   var html='<div class="sec-head"><div class="sec-title">Min konto</div></div>';
   html+='<div class="card" style="margin-bottom:12px;">';
   html+='<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;">Brugeroplysninger</div>';
