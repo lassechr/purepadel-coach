@@ -821,11 +821,15 @@ function rPlayers() {
     var canManage=(role==='club_admin'||role==='superadmin');
     // Find which teams this player is on
     var playerTeamIds=[];
-    if(STATE.teamMembersCache){
+    var playerProfileId=p.profile_id||null;
+    if(playerProfileId&&STATE.teamMembersCache){
       for(var tk in STATE.teamMembersCache){
         var tms=STATE.teamMembersCache[tk];
         for(var tmi=0;tmi<tms.length;tmi++){
-          if(tms[tmi].player_id===p.id){playerTeamIds.push({teamId:tk,memberId:tms[tmi].id});break;}
+          if(tms[tmi].player_id===playerProfileId){
+            playerTeamIds.push({teamId:tk,memberId:tms[tmi].id,isReserve:tms[tmi].is_reserve,isCaptain:tms[tmi].is_captain});
+            break;
+          }
         }
       }
     }
@@ -845,16 +849,19 @@ function rPlayers() {
       for(var tki=0;tki<playerTeamIds.length;tki++){
         for(var ti2=0;ti2<STATE.teams.length;ti2++){
           if(STATE.teams[ti2].id===playerTeamIds[tki].teamId){
-            teamNames.push({name:STATE.teams[ti2].name,memberId:playerTeamIds[tki].memberId,teamId:playerTeamIds[tki].teamId});
+            teamNames.push({name:STATE.teams[ti2].name,memberId:playerTeamIds[tki].memberId,teamId:playerTeamIds[tki].teamId,isReserve:playerTeamIds[tki].isReserve,isCaptain:playerTeamIds[tki].isCaptain});
             break;
           }
         }
       }
       if(teamNames.length){
         for(var ni=0;ni<teamNames.length;ni++){
+          var tn=teamNames[ni];
           html+='<span style="font-size:11px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;">';
-          html+=esc(teamNames[ni].name);
-          html+='<span onclick="removePlayerFromTeam(\''+teamNames[ni].memberId+'\',\''+teamNames[ni].teamId+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
+          html+=esc(tn.name);
+          if(tn.isCaptain)html+=' <span style="font-size:10px;">&#9733;</span>';
+          if(tn.isReserve)html+=' <span style="font-size:10px;color:#b7770d;">(R)</span>';
+          html+='<span onclick="removePlayerFromTeam(\''+tn.memberId+'\',\''+tn.teamId+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
           html+='</span>';
         }
       }
@@ -1376,31 +1383,51 @@ function localDT(iso){
 
 // ── HOLD (TEAMS + EVENTS) ────────────────────────────────────
 function rHold(){
-  var teams=STATE.teams;
   var role=STATE.profile?STATE.profile.role:'';
   var canManageTeams=(role==='superadmin'||role==='club_admin');
+  var allTeams=STATE.teams;
+
+  // For trainers: only show teams they are members of
+  var myTeamIds=[];
+  if(role==='trainer'){
+    if(STATE.teamMembersCache){
+      for(var tk in STATE.teamMembersCache){
+        var tms=STATE.teamMembersCache[tk];
+        for(var ti=0;ti<tms.length;ti++){
+          if(tms[ti].player_id===STATE.profile.id&&tms[ti].is_trainer){
+            myTeamIds.push(tk);break;
+          }
+        }
+      }
+    }
+    allTeams=allTeams.filter(function(t){return myTeamIds.indexOf(t.id)>=0||t.parent_team_id&&myTeamIds.indexOf(t.parent_team_id)>=0;});
+  }
+
   var html='<div class="sec-head"><div class="sec-title">Hold &amp; Tr&#230;ninger</div>';
   if(canManageTeams)html+='<button class="btn btn-dark btn-sm" onclick="openModal(\'edit_team\')">+ Nyt hold</button>';
   html+='</div>';
 
-  if(!teams.length){
+  if(!allTeams.length){
     html+='<div class="empty">Ingen hold endnu'+(canManageTeams?' &#8211; opret det f&#248;rste hold':'')+'</div>';
     return html;
   }
 
-  // Team filter pills
+  // Filter pills – only training teams
+  var trainingTeams=allTeams.filter(function(t){return t.team_type!=='dpf';});
+  var dpfTeams=allTeams.filter(function(t){return t.team_type==='dpf';});
+
   html+='<div class="pills" style="margin-bottom:16px;">';
   html+='<span class="pill'+(STATE.teamFilter==='all'?' active':'')+'" onclick="STATE.teamFilter=\'all\';render()">Alle</span>';
-  for(var ti=0;ti<teams.length;ti++){
-    var tm=teams[ti];
+  for(var ti=0;ti<trainingTeams.length;ti++){
+    var tm=trainingTeams[ti];
     html+='<span class="pill'+(STATE.teamFilter===tm.id?' active':'')+'" onclick="STATE.teamFilter=\''+tm.id+'\';render()">'+esc(tm.name)+'</span>';
   }
   html+='</div>';
 
-  var filteredTeams=STATE.teamFilter==='all'?teams:teams.filter(function(t){return t.id===STATE.teamFilter;});
+  var filteredTraining=STATE.teamFilter==='all'?trainingTeams:trainingTeams.filter(function(t){return t.id===STATE.teamFilter;});
 
-  for(var i=0;i<filteredTeams.length;i++){
-    var team=filteredTeams[i];
+  for(var i=0;i<filteredTraining.length;i++){
+    var team=filteredTraining[i];
     var teamEvents=STATE.events.filter(function(e){return e.team_id===team.id;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
     var now=new Date();
     var upcoming=teamEvents.filter(function(e){return new Date(e.date)>=now;});
@@ -1409,13 +1436,15 @@ function rHold(){
     var isTeamOpen=STATE.openTeam===team.id;
 
     html+='<div style="border:1.5px solid #e5e5e5;border-radius:12px;margin-bottom:16px;overflow:hidden;">';
+
+    // Training team header
     html+='<div style="background:#f9f9f9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
     html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:700;color:#111;">'+esc(team.name)+'</div>';
     html+='<div style="font-size:12px;color:#888;margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
     html+='</div>';
     html+='<div style="display:flex;gap:6px;align-items:center;">';
-    html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Begivenhed</button>';
+    html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Tr&#230;ning</button>';
     if(canManageTeams)html+='<button class="btn btn-light btn-sm" onclick="editTeam(\''+team.id+'\')">&#9881;</button>';
     html+='<button onclick="toggleTeam(\''+team.id+'\')" style="background:none;border:1.5px solid #ddd;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;color:#666;">'+(isTeamOpen?'&#9650;':'&#9660;')+'</button>';
     html+='</div></div>';
@@ -1424,7 +1453,6 @@ function rHold(){
     if(isTeamOpen){
       var teamMemberData=STATE.teamMembersCache&&STATE.teamMembersCache[team.id];
       html+='<div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;background:#fafafa;">';
-
       if(!teamMemberData){
         html+='<div style="font-size:13px;color:#aaa;">Henter...</div>';
         setTimeout(function(tid){return function(){
@@ -1435,61 +1463,202 @@ function rHold(){
           });
         };}(team.id),10);
       } else {
-        var regulars=teamMemberData.filter(function(m){return !m.is_reserve;});
+        var regulars=teamMemberData.filter(function(m){return !m.is_reserve&&!m.is_trainer;});
         var reserves=teamMemberData.filter(function(m){return m.is_reserve;});
+        var trainers=teamMemberData.filter(function(m){return m.is_trainer;});
 
-        html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Faste spillere ('+regulars.length+')</div>';
-        if(!regulars.length){
-          html+='<div style="font-size:13px;color:#aaa;margin-bottom:10px;">Ingen faste spillere</div>';
-        } else {
-          for(var mi=0;mi<regulars.length;mi++){
-            var mem=regulars[mi];
-            var pname=getPlayerName(mem.player_id);
-            var plevel=0;
-            for(var pli=0;pli<STATE.players.length;pli++){if(STATE.players[pli].profile_id===mem.player_id){plevel=STATE.players[pli].level||0;break;}}
-            html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
-            html+='<div style="display:flex;align-items:center;gap:8px;">';
-            html+='<span style="font-size:13px;font-weight:500;color:#111;">'+esc(pname)+'</span>';
-            if(plevel)html+='<span style="color:#f5a623;font-size:11px;">'+'\u2605'.repeat(plevel)+'</span>';
-            if(mem.is_captain)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 6px;">&#9733; Kaptajn</span>';
+        // Trainers
+        if(trainers.length){
+          html+='<div style="font-size:11px;font-weight:700;color:#1d6fb5;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Tr&#230;nere</div>';
+          for(var tri=0;tri<trainers.length;tri++){
+            var tmem=trainers[tri];
+            html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">';
+            html+='<div style="display:flex;align-items:center;gap:6px;">';
+            html+='<span style="font-size:13px;color:#1d6fb5;font-weight:500;">'+esc(getPlayerName(tmem.player_id))+'</span>';
+            html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 5px;">Tr&#230;ner</span>';
+            html+='</div>';
+            if(canManageTeams)html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 6px;" onclick="removeTeamMemberDirect(\''+tmem.id+'\',\''+team.id+'\')">Fjern</button>';
+            html+='</div>';
+          }
+        }
+
+        // Regular players
+        html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;">Faste spillere ('+regulars.length+')</div>';
+        if(!regulars.length)html+='<div style="font-size:13px;color:#aaa;margin-bottom:8px;">Ingen faste spillere</div>';
+        for(var mi=0;mi<regulars.length;mi++){
+          var mem=regulars[mi];
+          var pname=getPlayerName(mem.player_id);
+          var plevel=0;
+          for(var pli=0;pli<STATE.players.length;pli++){if(STATE.players[pli].profile_id===mem.player_id){plevel=STATE.players[pli].level||0;break;}}
+          html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">';
+          html+='<div style="display:flex;align-items:center;gap:6px;">';
+          html+='<span style="font-size:13px;font-weight:500;color:#111;">'+esc(pname)+'</span>';
+          if(plevel)html+='<span style="color:#f5a623;font-size:11px;">'+'\u2605'.repeat(plevel)+'</span>';
+          if(mem.is_captain)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 5px;">&#9733; Kaptajn</span>';
+          html+='</div>';
+          if(canManageTeams){
+            html+='<div style="display:flex;gap:3px;">';
+            html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')">'+(mem.is_captain?'&#9733;':'Kap.')+'</button>';
+            html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr;R</button>';
+            html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 5px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">&#10005;</button>';
+            html+='</div>';
+          }
+          html+='</div>';
+        }
+
+        // Reserves
+        if(reserves.length){
+          html+='<div style="font-size:11px;font-weight:700;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;">Reserver ('+reserves.length+')</div>';
+          for(var ri=0;ri<reserves.length;ri++){
+            var rmem=reserves[ri];
+            var rname=getPlayerName(rmem.player_id);
+            html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">';
+            html+='<div style="display:flex;align-items:center;gap:6px;">';
+            html+='<span style="font-size:13px;color:#888;">'+esc(rname)+'</span>';
+            html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 5px;">Reserve</span>';
             html+='</div>';
             if(canManageTeams){
-              html+='<div style="display:flex;gap:4px;">';
-              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;background:'+(mem.is_captain?'#e8f0fb':'')+'" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')">'+( mem.is_captain?'&#9733; Kaptajn':'Kaptajn?')+'</button>';
-              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr; Reserve</button>';
-              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 6px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">Fjern</button>';
+              html+='<div style="display:flex;gap:3px;">';
+              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleReserve(\''+rmem.id+'\',\''+team.id+'\',false)">&rarr;Fast</button>';
+              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 5px;" onclick="removeTeamMemberDirect(\''+rmem.id+'\',\''+team.id+'\')">&#10005;</button>';
               html+='</div>';
             }
             html+='</div>';
           }
         }
 
-        html+='<div style="font-size:11px;font-weight:700;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin:12px 0 8px;">Reserver ('+reserves.length+')</div>';
-        if(!reserves.length){
-          html+='<div style="font-size:13px;color:#aaa;">Ingen reserver</div>';
-        } else {
-          for(var ri=0;ri<reserves.length;ri++){
-            var rmem=reserves[ri];
-            var rname=getPlayerName(rmem.player_id);
-            html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
-            html+='<div style="display:flex;align-items:center;gap:8px;">';
-            html+='<span style="font-size:13px;color:#888;">'+esc(rname)+'</span>';
-            html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 6px;">Reserve</span>';
-            html+='</div>';
-            if(canManageTeams){
-              html+='<div style="display:flex;gap:4px;">';
-              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;" onclick="toggleReserve(\''+rmem.id+'\',\''+team.id+'\',false)">&rarr; Fast</button>';
-              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 6px;" onclick="removeTeamMemberDirect(\''+rmem.id+'\',\''+team.id+'\')">Fjern</button>';
-              html+='</div>';
-            }
-            html+='</div>';
+        // Add member
+        if(canManageTeams){
+          html+='<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">';
+          html+='<select id="qAddSel_'+team.id+'" class="finput" style="flex:1;font-size:12px;margin-bottom:0;">';
+          html+='<option value="">+ Tilf\u00f8j spiller/tr\u00e6ner...</option>';
+          var tClubId=team.club_id||clubId();
+          var tPlayers=STATE.players.filter(function(pl){return pl.club_id===tClubId&&pl.profile_id;});
+          // Also add trainers from allProfiles
+          var tTrainers=STATE.allProfiles.filter(function(pr){return pr.role==='trainer'&&(pr.club_id===tClubId||pr.id===tClubId);});
+          html+='<optgroup label="Spillere">';
+          for(var qi=0;qi<tPlayers.length;qi++){
+            html+='<option value="'+tPlayers[qi].profile_id+'|fast">'+esc(tPlayers[qi].name)+' (Fast)</option>';
+            html+='<option value="'+tPlayers[qi].profile_id+'|reserve">'+esc(tPlayers[qi].name)+' (Reserve)</option>';
           }
+          html+='</optgroup>';
+          html+='<optgroup label="Tr\u00e6nere">';
+          for(var qti=0;qti<tTrainers.length;qti++){
+            html+='<option value="'+tTrainers[qti].id+'|trainer">'+esc(tTrainers[qti].name||tTrainers[qti].email)+' (Tr\u00e6ner)</option>';
+          }
+          html+='</optgroup>';
+          html+='</select>';
+          html+='<button class="btn btn-light btn-sm" onclick="quickAddMember(\''+team.id+'\')">Tilf\u00f8j</button>';
+          html+='</div>';
         }
       }
       html+='</div>';
     }
+
+    // DPF sub-teams
+    var subTeams=dpfTeams.filter(function(t){return t.parent_team_id===team.id;});
+    if(subTeams.length||canManageTeams){
+      html+='<div style="padding:10px 16px;background:#fafaf8;border-top:1px solid #f0f0f0;">';
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+      html+='<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;">DPF-hold ('+subTeams.length+')</div>';
+      if(canManageTeams)html+='<button class="btn btn-light btn-sm" style="font-size:11px;" onclick="createDpfTeam(\''+team.id+'\')">+ DPF-hold</button>';
+      html+='</div>';
+      for(var si=0;si<subTeams.length;si++){
+        var sub=subTeams[si];
+        var subEvents=STATE.events.filter(function(e){return e.team_id===sub.id;}).filter(function(e){return new Date(e.date)>=now;});
+        html+='<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;overflow:hidden;">';
+        html+='<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;background:#fff;">';
+        html+='<div>';
+        html+='<div style="font-size:14px;font-weight:600;color:#111;">'+esc(sub.name)+'</div>';
+        var divTxt=sub.division?'<span style="font-size:11px;background:#f0f0f0;color:#666;border-radius:4px;padding:1px 6px;margin-left:6px;">'+esc(sub.division)+'</span>':'';
+        html+=divTxt;
+        html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
+        html+='</div>';
+        html+='<div style="display:flex;gap:6px;">';
+        html+='<button class="btn btn-dark btn-sm" style="font-size:11px;" onclick="openNewEvent(\''+sub.id+'\')">+ Kamp</button>';
+        if(canManageTeams)html+='<button class="btn btn-light btn-sm" onclick="editTeam(\''+sub.id+'\')">&#9881;</button>';
+        html+='<button onclick="toggleTeam(\''+sub.id+'\')" style="background:none;border:1.5px solid #ddd;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#666;">'+(STATE.openTeam===sub.id?'&#9650;':'&#9660;')+'</button>';
+        html+='</div></div>';
+
+        if(STATE.openTeam===sub.id){
+          var subMemberData=STATE.teamMembersCache&&STATE.teamMembersCache[sub.id];
+          html+='<div style="padding:10px 14px;background:#fafafa;">';
+          if(!subMemberData){
+            html+='<div style="font-size:12px;color:#aaa;">Henter...</div>';
+            setTimeout(function(sid){return function(){
+              loadTeamMembers(sid).then(function(members){
+                if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+                STATE.teamMembersCache[sid]=Array.isArray(members)?members:[];
+                render();
+              });
+            };}(sub.id),10);
+          } else {
+            var subReg=subMemberData.filter(function(m){return !m.is_reserve;});
+            var subRes=subMemberData.filter(function(m){return m.is_reserve;});
+            html+='<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px;">Spillere ('+subReg.length+')</div>';
+            for(var smi=0;smi<subReg.length;smi++){
+              var smem=subReg[smi];
+              html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;">';
+              html+='<div style="display:flex;align-items:center;gap:6px;">';
+              html+='<span style="font-size:12px;font-weight:500;">'+esc(getPlayerName(smem.player_id))+'</span>';
+              if(smem.is_captain)html+='<span style="font-size:10px;color:#1d6fb5;">&#9733; Kap.</span>';
+              html+='</div>';
+              if(canManageTeams){
+                html+='<div style="display:flex;gap:3px;">';
+                html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:1px 5px;" onclick="toggleCaptain(\''+smem.id+'\',\''+sub.id+'\','+(smem.is_captain?'false':'true')+')">'+(smem.is_captain?'&#9733;':'Kap.')+'</button>';
+                html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:1px 5px;" onclick="removeTeamMemberDirect(\''+smem.id+'\',\''+sub.id+'\')">&#10005;</button>';
+                html+='</div>';
+              }
+              html+='</div>';
+            }
+            if(subRes.length){
+              html+='<div style="font-size:11px;font-weight:700;color:#b7770d;text-transform:uppercase;margin:8px 0 4px;">Reserver</div>';
+              for(var sri=0;sri<subRes.length;sri++){
+                var srmem=subRes[sri];
+                html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;">';
+                html+='<span style="font-size:12px;color:#888;">'+esc(getPlayerName(srmem.player_id))+'</span>';
+                if(canManageTeams)html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:1px 5px;" onclick="removeTeamMemberDirect(\''+srmem.id+'\',\''+sub.id+'\')">&#10005;</button>';
+                html+='</div>';
+              }
+            }
+            // Add to DPF team – from parent training team
+            if(canManageTeams){
+              var parentMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[team.id])||[];
+              var availForDpf=parentMembers.filter(function(m){
+                return !subMemberData.some(function(sm){return sm.player_id===m.player_id;});
+              });
+              if(availForDpf.length){
+                html+='<div style="margin-top:8px;display:flex;gap:6px;">';
+                html+='<select id="dpfAddSel_'+sub.id+'" class="finput" style="flex:1;font-size:11px;margin-bottom:0;">';
+                html+='<option value="">+ Tilf\u00f8j fra tr\u00e6ningshold...</option>';
+                for(var dai=0;dai<availForDpf.length;dai++){
+                  var dm=availForDpf[dai];
+                  html+='<option value="'+dm.player_id+'|fast">'+esc(getPlayerName(dm.player_id))+(dm.is_reserve?' (R)':'')+'</option>';
+                  html+='<option value="'+dm.player_id+'|reserve">'+esc(getPlayerName(dm.player_id))+' (Reserve)</option>';
+                }
+                html+='</select>';
+                html+='<button class="btn btn-light btn-sm" onclick="quickAddMember(\''+sub.id+'\')">Tilf\u00f8j</button>';
+                html+='</div>';
+              }
+            }
+          }
+          // DPF events
+          var subAllEvents=STATE.events.filter(function(e){return e.team_id===sub.id;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+          if(subAllEvents.length){
+            html+='<div style="margin-top:10px;border-top:1px solid #eee;padding-top:10px;">';
+            for(var sei=0;sei<subAllEvents.length;sei++){html+=rEventRow(subAllEvents[sei],sub,new Date(subAllEvents[sei].date)<now);}
+            html+='</div>';
+          }
+          html+='</div>';
+        }
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+
+    // Training events
     if(!teamEvents.length){
-      html+='<div style="padding:14px 16px;font-size:13px;color:#aaa;">Ingen begivenheder endnu</div>';
+      html+='<div style="padding:14px 16px;font-size:13px;color:#aaa;">Ingen tr\u00e6ninger endnu</div>';
     } else {
       for(var ei=0;ei<upcoming.length;ei++){html+=rEventRow(upcoming[ei],team,false);}
       if(past.length){
@@ -1501,6 +1670,7 @@ function rHold(){
   }
   return html;
 }
+
 
 function rEventRow(ev,team,isPast){
   var responses=STATE.eventResponses.filter(function(r){return r.event_id===ev.id;});
@@ -1625,23 +1795,43 @@ function rTeamModal(){
   var isSuperadmin=STATE.profile&&STATE.profile.role==='superadmin';
   var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
   html+='<div class="modal-title">'+(isEdit?'Rediger hold':'Nyt hold')+'</div>';
-  html+='<div class="modal-sub">Hold bruges til at organisere tr&#230;ninger og kampe</div>';
-  html+='<div class="fg"><label class="flabel">Holdnavn</label><input class="finput" id="tmN" value="'+esc(isEdit?ed.name||'':'')+'" placeholder="fx Herrehold 1, Damehold A..."></div>';
-  html+='<div class="fg"><label class="flabel">Type</label><select class="finput" id="tmT">';
+  html+='<div class="modal-sub">Holds bruges til at organisere tr\u00e6ninger og DPF-kampe</div>';
+
+  // Team type
+  var isDpf=isEdit&&ed.team_type==='dpf';
+  html+='<div class="fg"><label class="flabel">Holdtype</label>';
+  html+='<div style="display:flex;gap:8px;margin-top:6px;">';
+  html+='<button id="ttTraining" class="btn '+(isDpf?'btn-light':'btn-dark')+' btn-sm" onclick="setTeamType(\'training\')">Tr\u00e6ningshold</button>';
+  html+='<button id="ttDpf" class="btn '+(isDpf?'btn-dark':'btn-light')+' btn-sm" onclick="setTeamType(\'dpf\')">DPF-hold</button>';
+  html+='</div><input type="hidden" id="tmType" value="'+(isDpf?'dpf':'training')+'"></div>';
+
+  html+='<div class="fg"><label class="flabel">Holdnavn</label><input class="finput" id="tmN" value="'+esc(isEdit?ed.name||'':'')+'" placeholder="fx Hp1, Skagen 1, Herrehold A..."></div>';
+
+  html+='<div class="frow">';
+  html+='<div><label class="flabel">Type</label><select class="finput" id="tmT">';
   html+='<option value="herre"'+(isEdit&&ed.type==='herre'?' selected':(!isEdit?' selected':''))+'>Herrehold</option>';
   html+='<option value="dame"'+(isEdit&&ed.type==='dame'?' selected':'')+'>Damehold</option>';
   html+='<option value="mix"'+(isEdit&&ed.type==='mix'?' selected':'')+'>Mixhold</option>';
   html+='</select></div>';
+  html+='<div><label class="flabel">Division/Serie</label><input class="finput" id="tmDiv" value="'+esc(isEdit?ed.division||'':'')+'" placeholder="fx 1. division, A-r\u00e6kke..."></div>';
+  html+='</div>';
 
-  // Superadmin: pick which club this team belongs to
+  // Parent team (for DPF holds)
+  html+='<div id="tmParentWrap" style="'+(isDpf?'':'display:none;')+'">';
+  var trainingTeams=STATE.teams.filter(function(t){return t.team_type!=='dpf';});
+  html+='<div class="fg"><label class="flabel">Tilh\u00f8rer tr\u00e6ningshold</label><select class="finput" id="tmParent">';
+  html+='<option value="">V\u00e6lg tr\u00e6ningshold...</option>';
+  for(var ti=0;ti<trainingTeams.length;ti++){
+    html+='<option value="'+trainingTeams[ti].id+'"'+(isEdit&&ed.parent_team_id===trainingTeams[ti].id?' selected':'')+'>'+esc(trainingTeams[ti].name)+'</option>';
+  }
+  html+='</select></div></div>';
+
   if(isSuperadmin){
     var clubs=STATE.allProfiles.filter(function(p){return p.role==='club_admin';});
     html+='<div class="fg"><label class="flabel">Forening</label><select class="finput" id="tmClub">';
-    html+='<option value="">V&#230;lg forening...</option>';
+    html+='<option value="">V\u00e6lg forening...</option>';
     for(var ci=0;ci<clubs.length;ci++){
-      var c=clubs[ci];
-      var selected=isEdit&&ed.club_id===c.id?' selected':'';
-      html+='<option value="'+c.id+'"'+selected+'>'+esc(c.club_name||c.name||c.email)+'</option>';
+      html+='<option value="'+clubs[ci].id+'"'+(isEdit&&ed.club_id===clubs[ci].id?' selected':'')+'>'+esc(clubs[ci].club_name||clubs[ci].name||clubs[ci].email)+'</option>';
     }
     html+='</select></div>';
   }
@@ -1652,14 +1842,12 @@ function rTeamModal(){
     html+='<div id="teamMembersList"><div style="font-size:12px;color:#aaa;padding:8px 0;">Henter spillere...</div></div>';
     html+='<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">';
     html+='<select class="finput" id="addMemberSel" style="flex:1;margin-bottom:0;">';
-    html+='<option value="">V&#230;lg spiller at tilf&#248;je...</option>';
+    html+='<option value="">V\u00e6lg spiller at tilf\u00f8je...</option>';
     var teamClubId=ed.club_id||clubId();
     var clubPlayers=STATE.players.filter(function(pl){return pl.club_id===teamClubId;});
-    if(!clubPlayers.length){
-      html+='<option disabled>Ingen spillere oprettet i denne forening</option>';
-    }
     for(var i=0;i<clubPlayers.length;i++){
-      html+='<option value="'+clubPlayers[i].id+'">'+esc(clubPlayers[i].name)+'</option>';
+      html+='<option value="'+clubPlayers[i].id+'|fast">'+esc(clubPlayers[i].name)+' (Fast)</option>';
+      html+='<option value="'+clubPlayers[i].id+'|reserve">'+esc(clubPlayers[i].name)+' (Reserve)</option>';
     }
     html+='</select>';
     html+='<button class="btn btn-light btn-sm" onclick="addTeamMember(\''+ed.id+'\')">Tilf&#248;j</button>';
@@ -1669,11 +1857,12 @@ function rTeamModal(){
   html+='<div class="modal-actions">';
   if(isEdit)html+='<button class="btn btn-red btn-sm" onclick="deleteTeam(\''+ed.id+'\')">Slet hold</button>';
   html+='<button class="btn btn-light" onclick="closeModal()">Annuller</button>';
-  html+='<button class="btn btn-dark" onclick="saveTeam()">'+(isEdit?'Gem &#230;ndringer':'Opret hold')+'</button>';
+  html+='<button class="btn btn-dark" onclick="saveTeam()">'+(isEdit?'Gem \u00e6ndringer':'Opret hold')+'</button>';
   html+='</div></div></div>';
   if(isEdit){setTimeout(function(){refreshTeamMembersList(ed.id);},50);}
   return html;
 }
+
 
 function rEventModal(){
   var ed=STATE.editEvent||{};
@@ -1811,6 +2000,54 @@ window.toggleReserve=function(memberId,teamId,makeReserve){
   });
 };
 
+window.quickAddMember=function(teamId){
+  // Try both possible select IDs
+  var sel=document.getElementById('qAddSel_'+teamId)||document.getElementById('dpfAddSel_'+teamId);
+  if(!sel||!sel.value)return;
+  var parts=sel.value.split('|');
+  var profileId=parts[0];
+  var memberType=parts[1]||'fast';
+  var isReserve=memberType==='reserve';
+  var isTrainer=memberType==='trainer';
+  sbPost('team_members',{team_id:teamId,player_id:profileId,is_reserve:isReserve,is_trainer:isTrainer}).then(function(res){
+    if(res&&res.code==='23505'){alert('Allerede tilf\\u00f8jet til dette hold');return;}
+    if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
+    if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+    delete STATE.teamMembersCache[teamId];
+    loadTeamMembersCache().then(render);
+  });
+};
+
+window.createDpfTeam=function(parentTeamId){
+  var parent=null;
+  for(var i=0;i<STATE.teams.length;i++)if(STATE.teams[i].id===parentTeamId){parent=STATE.teams[i];break;}
+  STATE.editTeam=null;
+  // Pre-fill with parent info
+  STATE.newDpfParent=parentTeamId;
+  STATE.modal='edit_team';
+  render();
+  // After render, set team type to dpf
+  setTimeout(function(){
+    if(document.getElementById('tmType'))document.getElementById('tmType').value='dpf';
+    if(document.getElementById('tmParentWrap'))document.getElementById('tmParentWrap').style.display='';
+    if(document.getElementById('tmParent'))document.getElementById('tmParent').value=parentTeamId;
+    var db=document.getElementById('ttDpf');
+    var tb=document.getElementById('ttTraining');
+    if(db)db.className='btn btn-dark btn-sm';
+    if(tb)tb.className='btn btn-light btn-sm';
+  },50);
+};
+
+window.setTeamType=function(type){
+  document.getElementById('tmType').value=type;
+  var wrap=document.getElementById('tmParentWrap');
+  if(wrap)wrap.style.display=type==='dpf'?'':'none';
+  var tb=document.getElementById('ttTraining');
+  var db=document.getElementById('ttDpf');
+  if(tb)tb.className='btn '+(type==='dpf'?'btn-light':'btn-dark')+' btn-sm';
+  if(db)db.className='btn '+(type==='dpf'?'btn-dark':'btn-light')+' btn-sm';
+};
+
 window.toggleTeam=function(id){
   STATE.openTeam=STATE.openTeam===id?null:id;
   // Clear cache for this team so it reloads fresh
@@ -1898,29 +2135,25 @@ window.saveTeam=function(){
   var name=(document.getElementById('tmN')||{}).value||'';
   if(!name.trim()){alert('Angiv et holdnavn');return;}
   var type=(document.getElementById('tmT')||{}).value||'herre';
-  var cid;
+  var teamType=(document.getElementById('tmType')||{}).value||'training';
+  var division=((document.getElementById('tmDiv')||{}).value||'').trim()||null;
+  var parentId=((document.getElementById('tmParent')||{}).value||'')||null;
+  var cid=clubId();
   if(role==='superadmin'){
     var clubSel=document.getElementById('tmClub');
-    if(clubSel&&clubSel.value){
-      cid=clubSel.value;
-    } else if(!STATE.editTeam){
-      alert(!STATE.allProfiles.length?'Ingen foreninger fundet – genindlæs siden':'Vælg en forening');
-      return;
-    } else {
-      cid=STATE.editTeam.club_id;
-    }
-  } else {
-    cid=clubId();
+    if(clubSel&&clubSel.value){cid=clubSel.value;}
+    else if(!STATE.editTeam){alert(!STATE.allProfiles.length?'Ingen foreninger fundet':'V\u00e6lg en forening');return;}
+    else{cid=STATE.editTeam.club_id;}
   }
-  var data={club_id:cid,name:name.trim(),type:type};
+  var data={club_id:cid,name:name.trim(),type:type,team_type:teamType,division:division,parent_team_id:parentId||null};
   var ed=STATE.editTeam;
   var p=ed&&ed.id?sbPatch('teams',data,'id=eq.'+ed.id):sbPost('teams',data);
   p.then(function(res){
     if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
     STATE.editTeam=null;
     closeModal();
-    loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(function(){render();});
-  }).catch(function(err){alert('Netværksfejl: '+err.message);});
+    loadTeams().then(function(){return loadEvents();}).then(function(){return loadEventResponses();}).then(function(){loadTeamMembersCache().then(render);});
+  }).catch(function(err){alert('Netv\u00e6rksfejl: '+err.message);});
 };
 
 window.deleteTeam=function(id){
