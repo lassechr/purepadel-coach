@@ -1160,16 +1160,28 @@ function rClubField(selectedId){
 
 function rPlayerModal(){
   var role=STATE.profile?STATE.profile.role:'';
-  return'<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">'
-    +'<div class="modal-title">Tilf\u00f8j spiller</div>'
-    +'<div class="modal-sub">Gemmes i databasen \u2013 synlig p\u00e5 alle enheder</div>'
-    +rClubField('')
-    +'<div class="fg"><label class="flabel">Fulde navn</label><input class="finput" id="pN" placeholder="Fornavn Efternavn"></div>'
-    +'<div class="fg"><label class="flabel">Niveau (1-5)</label><input class="finput" id="pL" type="number" min="1" max="5" value="3"></div>'
-    +'<div class="fg"><label class="flabel">Foretrukken side</label><select class="finput" id="pS"><option value="hojre">H\u00f8jre</option><option value="venstre">Venstre</option><option value="begge">Begge sider</option></select></div>'
-    +'<div class="fg"><label class="flabel">Noter</label><input class="finput" id="pO" placeholder="Fx skade, info..."></div>'
-    +'<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="savePlayer()">Gem spiller</button></div>'
-    +'</div></div>';
+  var canCreateLogin=(role==='club_admin'||role==='superadmin');
+  var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
+  html+='<div class="modal-title">Tilf\u00f8j spiller</div>';
+  html+='<div class="modal-sub">Gemmes i databasen \u2013 synlig p\u00e5 alle enheder</div>';
+  html+=rClubField('');
+  html+='<div class="fg"><label class="flabel">Fulde navn</label><input class="finput" id="pN" placeholder="Fornavn Efternavn"></div>';
+  if(canCreateLogin){
+    html+='<div style="background:#f0f7ff;border:1px solid #b3cef0;border-radius:10px;padding:14px;margin-bottom:10px;">';
+    html+='<div style="font-size:11px;font-weight:700;color:#1d6fb5;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Login-oplysninger</div>';
+    html+='<div class="fg"><label class="flabel">Email</label><input class="finput" id="pEmail" type="email" placeholder="spiller@email.dk"></div>';
+    html+='<div class="fg"><label class="flabel">Password</label><input class="finput" id="pPw" type="text" placeholder="Mindst 6 tegn"></div>';
+    html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px;">';
+    html+='<input type="checkbox" id="pSendMail" checked style="width:16px;height:16px;cursor:pointer;">';
+    html+='<span style="font-size:13px;">Send velkomst-email med login-oplysninger</span>';
+    html+='</label></div>';
+  }
+  html+='<div class="fg"><label class="flabel">Niveau (1-5)</label><input class="finput" id="pL" type="number" min="1" max="5" value="3"></div>';
+  html+='<div class="fg"><label class="flabel">Foretrukken side</label><select class="finput" id="pS"><option value="hojre">H\u00f8jre</option><option value="venstre">Venstre</option><option value="begge">Begge sider</option></select></div>';
+  html+='<div class="fg"><label class="flabel">Noter</label><input class="finput" id="pO" placeholder="Fx skade, info..."></div>';
+  html+='<div class="modal-actions"><button class="btn btn-light" onclick="closeModal()">Annuller</button><button class="btn btn-dark" onclick="savePlayer()">Gem spiller</button></div>';
+  html+='</div></div>';
+  return html;
 }
 
 function rEditPlayerModal(){
@@ -2492,10 +2504,45 @@ window.delDrill=function(id){
 window.savePlayer=function(){
   var n=(document.getElementById('pN')||{}).value||'';
   if(!n.trim()){alert('Angiv et navn');return;}
+  var email=((document.getElementById('pEmail')||{}).value||'').trim();
+  var pw=((document.getElementById('pPw')||{}).value||'').trim();
+  var sendMail=document.getElementById('pSendMail')&&document.getElementById('pSendMail').checked;
   var cid=(document.getElementById('pClub')||{}).value||clubId();
   if(!cid){alert('V\u00e6lg en forening');return;}
-  sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt(document.getElementById('pL').value)||3)),side:document.getElementById('pS').value,notes:(document.getElementById('pO').value||'').trim()})
-  .then(function(){closeModal();loadPlayers().then(render);});
+
+  if(email&&pw){
+    // Create with login
+    if(pw.length<6){alert('Password skal v\u00e6re mindst 6 tegn');return;}
+    sbFetch('POST','/auth/v1/signup',{email:email,password:pw},null).then(function(data){
+      if(data.id||(data.user&&data.user.id)){
+        var uid=data.id||data.user.id;
+        sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{
+          name:n.trim(),role:'player',club_id:cid,status:'active',notify_push:true,notify_email:true
+        },SB_KEY).then(function(){
+          sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt((document.getElementById('pL')||{}).value)||3)),side:(document.getElementById('pS')||{}).value||'begge',notes:((document.getElementById('pO')||{}).value||'').trim(),profile_id:uid}).then(function(){
+            if(sendMail){
+              var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+                +'<h2>Velkommen til PurePadel Coach!</h2>'
+                +'<p>Din konto er oprettet. Log ind med:</p>'
+                +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
+                +'<strong>Email:</strong> '+email+'<br><strong>Password:</strong> '+pw+'</div>'
+                +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
+                +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel Coach</p></div>';
+              sendEmailToPlayer(uid,'Velkommen til PurePadel Coach','Din konto er oprettet.\n\nEmail: '+email+'\nPassword: '+pw+'\n\nLog ind p\u00e5: https://coach.purepadel.dk',emailHtml);
+            }
+            closeModal();loadPlayers().then(render);
+          });
+        });
+      } else {
+        if(data.code==='user_already_exists'){alert('Email er allerede i brug.');}
+        else{alert('Fejl: '+(data.message||data.error||JSON.stringify(data)));}
+      }
+    });
+  } else {
+    // Create without login (manual player, no auth)
+    sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt((document.getElementById('pL')||{}).value)||3)),side:(document.getElementById('pS')||{}).value||'begge',notes:((document.getElementById('pO')||{}).value||'').trim()})
+    .then(function(){closeModal();loadPlayers().then(render);});
+  }
 };
 
 window.openEditPlayer=function(id){
