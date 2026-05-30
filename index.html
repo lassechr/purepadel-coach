@@ -443,7 +443,7 @@ function initials(name){var p=(name||'').split(' ');var s='';for(var i=0;i<Math.
 function acolor(id){var c=[{color:'#1d6fb5',border:'#b3cef0',bg:'#e8f0fb'},{color:'#1e8449',border:'#a9dfbf',bg:'#eafaf1'},{color:'#7d3c98',border:'#d7bde2',bg:'#f5eef8'},{color:'#c0392b',border:'#f5b7b1',bg:'#fdecea'},{color:'#b7770d',border:'#f9e79f',bg:'#fef9e7'}];var k=typeof id==='string'?id.charCodeAt(0):id;return c[Math.abs(k)%c.length];}
 function sideInfo(s){if(s==='hojre'||s==='højre')return{label:'Højre',color:'#d35400',bg:'#fef5ec',border:'#f5cba7'};if(s==='venstre')return{label:'Venstre',color:'#1d6fb5',bg:'#e8f0fb',border:'#b3cef0'};return{label:'Begge',color:'#1e8449',bg:'#eafaf1',border:'#a9dfbf'};}
 function ytid(url){var m=(url||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([^?&\s]{11})/);return m?m[1]:null;}
-function formatDate(d){if(!d)return'–';return new Date(d).toLocaleDateString('da-DK');}
+function formatDate(d){if(!d)return'\u2013';return new Date(d).toLocaleDateString('da-DK',{day:'numeric',month:'numeric',year:'numeric'});}
 function daysLeft(d){if(!d)return 9999;try{var diff=new Date(d)-new Date();return Math.ceil(diff/86400000);}catch(e){return 9999;}}
 
 // ── RENDER ───────────────────────────────────────────────────
@@ -1397,6 +1397,14 @@ function localDT(iso){
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
 }
 
+function localDTNextHour(hoursAhead){
+  var d=new Date();
+  d.setMinutes(0,0,0);
+  d.setHours(d.getHours()+(hoursAhead||1));
+  var pad=function(n){return n<10?'0'+n:String(n);};
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':00';
+}
+
 // ── HOLD (TEAMS + EVENTS) ────────────────────────────────────
 function rHold(){
   var role=STATE.profile?STATE.profile.role:'';
@@ -1924,8 +1932,8 @@ function rEventModal(){
   html+='</select></div>';
 
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Startdato og -tid</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):'')+'" onchange="autoFillEndDate()"></div>';
-  html+='<div><label class="flabel">Sluttidspunkt</label><input class="finput" id="evEndTime" type="datetime-local" value="'+(ed.end_time?localDT(ed.end_time):'')+'"></div>';
+  html+='<div><label class="flabel">Startdato og -tid</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):localDTNextHour(1))+'" onchange="autoFillEndDate()"></div>';
+  html+='<div><label class="flabel">Sluttidspunkt</label><input class="finput" id="evEndTime" type="datetime-local" value="'+(ed.end_time?localDT(ed.end_time):localDTNextHour(3))+'"></div>';
   html+='</div>';
   html+='<div class="frow">';
   html+='<div><label class="flabel">Tilmeldingsfrist</label><input class="finput" id="evDeadline" type="datetime-local" value="'+(ed.signup_deadline?localDT(ed.signup_deadline):'')+'"></div>';
@@ -2202,13 +2210,16 @@ window.toggleAllPlayers=function(){
 window.autoFillEndDate=function(){
   var startEl=document.getElementById('evDate');
   var endEl=document.getElementById('evEndTime');
-  if(!startEl||!endEl||endEl.value)return;
-  // Pre-fill end with same date + 2 hours
+  if(!startEl||!endEl)return;
   var start=new Date(startEl.value);
   if(isNaN(start))return;
-  start.setHours(start.getHours()+2);
+  // Round start to nearest whole hour if minutes != 0
+  start.setMinutes(0,0,0);
+  // Set end to start + 2 hours
+  var end=new Date(start);
+  end.setHours(end.getHours()+2);
   var pad=function(n){return n<10?'0'+n:String(n);};
-  endEl.value=start.getFullYear()+'-'+pad(start.getMonth()+1)+'-'+pad(start.getDate())+'T'+pad(start.getHours())+':'+pad(start.getMinutes());
+  endEl.value=end.getFullYear()+'-'+pad(end.getMonth()+1)+'-'+pad(end.getDate())+'T'+pad(end.getHours())+':00';
 };
 
 window.setEvType=function(type){
