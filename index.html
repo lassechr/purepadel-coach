@@ -1946,15 +1946,7 @@ function rEventModal(){
     var selTeamId=(ed.team_id)||'';
     var teamMembers=selTeamId&&STATE.teamMembersCache&&STATE.teamMembersCache[selTeamId]||[];
     if(!teamMembers.length&&selTeamId){
-      // Load members async and re-render modal
-      setTimeout(function(){
-        loadTeamMembers(selTeamId).then(function(members){
-          if(!STATE.teamMembersCache)STATE.teamMembersCache={};
-          STATE.teamMembersCache[selTeamId]=Array.isArray(members)?members:[];
-          render();
-        });
-      },50);
-      html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Henter spillere...</div>';
+      html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Ingen spillere på holdet endnu</div>';
     } else if(!selTeamId){
       html+='<div style="font-size:12px;color:#aaa;">V&#230;lg et hold for at se spillere</div>';
     } else {
@@ -2156,7 +2148,16 @@ window.inviteReserve=function(evId,profileId){
 window.openNewEvent=function(teamId,type){
   STATE.editEvent={team_id:teamId,type:type||'training'};
   STATE.modal='edit_event';
-  render();
+  // Pre-load team members so player selection works without re-render
+  if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+  if(!STATE.teamMembersCache[teamId]){
+    loadTeamMembers(teamId).then(function(members){
+      STATE.teamMembersCache[teamId]=Array.isArray(members)?members:[];
+      render();
+    });
+  } else {
+    render();
+  }
 };
 
 window.editTeam=function(id){
