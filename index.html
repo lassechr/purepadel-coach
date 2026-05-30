@@ -2651,7 +2651,7 @@ function rPlayerApp(){
   html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+esc(p.email||'')+'</div></div>';
   html+='<input type="checkbox" id="notifEmailCb" '+(emailOn?'checked':'')+' style="width:20px;height:20px;cursor:pointer;">';
   html+='</div>';
-  html+='<button onclick="saveNotifyPrefs()" style="width:100%;margin-top:12px;padding:11px;background:#111;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">Gem notifikationsindstillinger</button>';
+  html+='<button id="saveNotifBtn" onclick="saveNotifyPrefs()" style="width:100%;margin-top:12px;padding:11px;background:#111;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">Gem notifikationsindstillinger</button>';
   if(pushSupported&&!notifGranted){
     html+='<button onclick="enablePush()" style="width:100%;margin-top:8px;padding:10px;background:#fff;color:#111;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">&#128276; Aktiv\u00e9r push i browser</button>';
   }
@@ -2799,9 +2799,11 @@ function loadPlayerData(){
     }
     STATE.playerTeamMemberships=members;
     STATE.playerCaptainTeamIds=members.filter(function(m){return m.is_captain;}).map(function(m){return m.team_id;});
-    var regularMemberships=members.filter(function(m){return !m.is_reserve;});
+    // All teams the player is a member of (fast + reserve, not trainer)
+    var allMemberTeamIds=members.filter(function(m){return !m.is_trainer;}).map(function(m){return m.team_id;});
+    var regularMemberships=members.filter(function(m){return !m.is_reserve&&!m.is_trainer;});
     var regularTeamIds=regularMemberships.map(function(m){return m.team_id;});
-    return sbGet('teams','id=in.('+(regularTeamIds.length?regularTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
+    return sbGet('teams','id=in.('+(allMemberTeamIds.length?allMemberTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
       STATE.playerTeams=Array.isArray(teams)?teams:[];
       // Load events from regular teams
       if(!regularTeamIds.length){STATE.playerEvents=[];STATE.playerResponses=[];return Promise.resolve();}
@@ -3367,7 +3369,7 @@ window.saveNotifyPrefs=function(){
   var emailCb=document.getElementById('notifEmailCb');
   var pushVal=pushCb?pushCb.checked:STATE.profile.notify_push!==false;
   var emailVal=emailCb?emailCb.checked:STATE.profile.notify_email!==false;
-  var btn=document.querySelector('[onclick="saveNotifyPrefs()"]');
+  var btn=document.getElementById('saveNotifBtn');
   if(btn)btn.textContent='Gemmer...';
   sbPatch('profiles',{notify_push:pushVal,notify_email:emailVal},'id=eq.'+STATE.profile.id).then(function(){
     STATE.profile.notify_push=pushVal;
