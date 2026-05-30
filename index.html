@@ -590,9 +590,9 @@ function rExpired() {
 function rAdmin() {
   var profiles = STATE.allProfiles;
   var trainersAndClubs = profiles.filter(function(p){return p.role==='trainer'||p.role==='club_admin';});
-  var active = trainersAndClubs.filter(function(p){return daysLeft(p.subscription_expires)>=0;});
+  var active = trainersAndClubs.filter(function(p){return p.subscription_expires&&daysLeft(p.subscription_expires)>=0;});
   var expiring = active.filter(function(p){var d=daysLeft(p.subscription_expires);return d>=0&&d<30;});
-  var expired = trainersAndClubs.filter(function(p){return daysLeft(p.subscription_expires)<0;});
+  var expired = trainersAndClubs.filter(function(p){return !p.subscription_expires||daysLeft(p.subscription_expires)<0;});
   var players = profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
 
   var html = '<div class="sec-head"><div class="sec-title">Admin Board</div>'
