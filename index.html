@@ -1498,11 +1498,13 @@ function rHold(){
           if(mem.is_captain)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 5px;">&#9733; Kaptajn</span>';
           html+='</div>';
           if(canSetCaptain||canManageTeams){
-            html+='<div style="display:flex;gap:3px;">';
-            html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;background:'+(mem.is_captain?'#e8f0fb':'')+';color:'+(mem.is_captain?'#1d6fb5':'')+'" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')">'+(mem.is_captain?'&#9733; Kap.':'Kap.')+'</button>';
+            html+='<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">';
+            // Captain toggle - star button
+            html+='<button title="'+(mem.is_captain?'Fjern som kaptajn':'G\u00f8r til kaptajn')+'" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')" style="background:'+(mem.is_captain?'#1d6fb5':'#f5f5f5')+';color:'+(mem.is_captain?'#fff':'#aaa')+';border:none;border-radius:6px;width:30px;height:30px;font-size:14px;cursor:pointer;flex-shrink:0;">&#9733;</button>';
             if(canManageTeams){
-              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr;R</button>';
-              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 5px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">&#10005;</button>';
+              // Move to reserve
+              html+='<button title="G\u00f8r til reserve" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)" style="background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Reserve</button>';
+              html+='<button title="Fjern fra hold" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')" style="background:#fff0f0;color:#c0392b;border:1px solid #f5b7b1;border-radius:6px;width:30px;height:30px;font-size:16px;cursor:pointer;">&#10005;</button>';
             }
             html+='</div>';
           }
@@ -1521,9 +1523,9 @@ function rHold(){
             html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 5px;">Reserve</span>';
             html+='</div>';
             if(canManageTeams){
-              html+='<div style="display:flex;gap:3px;">';
-              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 5px;" onclick="toggleReserve(\''+rmem.id+'\',\''+team.id+'\',false)">&rarr;Fast</button>';
-              html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 5px;" onclick="removeTeamMemberDirect(\''+rmem.id+'\',\''+team.id+'\')">&#10005;</button>';
+              html+='<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">';
+              html+='<button title="G\u00f8r til fast spiller" onclick="toggleReserve(\''+rmem.id+'\',\''+team.id+'\',false)" style="background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Fast spiller</button>';
+              html+='<button title="Fjern fra hold" onclick="removeTeamMemberDirect(\''+rmem.id+'\',\''+team.id+'\')" style="background:#fff0f0;color:#c0392b;border:1px solid #f5b7b1;border-radius:6px;width:30px;height:30px;font-size:16px;cursor:pointer;">&#10005;</button>';
               html+='</div>';
             }
             html+='</div>';
@@ -1607,9 +1609,9 @@ function rHold(){
               if(smem.is_captain)html+='<span style="font-size:10px;color:#1d6fb5;">&#9733; Kap.</span>';
               html+='</div>';
               if(canSetCaptain||canManageTeams){
-                html+='<div style="display:flex;gap:3px;">';
-                html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:1px 5px;background:'+(smem.is_captain?'#e8f0fb':'')+';color:'+(smem.is_captain?'#1d6fb5':'')+'" onclick="toggleCaptain(\''+smem.id+'\',\''+sub.id+'\','+(smem.is_captain?'false':'true')+')">'+(smem.is_captain?'&#9733; Kap.':'Kap.')+'</button>';
-                if(canManageTeams)html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:1px 5px;" onclick="removeTeamMemberDirect(\''+smem.id+'\',\''+sub.id+'\')">&#10005;</button>';
+                html+='<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">';
+                html+='<button title="'+(smem.is_captain?'Fjern som kaptajn':'G\u00f8r til kaptajn')+'" onclick="toggleCaptain(\''+smem.id+'\',\''+sub.id+'\','+(smem.is_captain?'false':'true')+')" style="background:'+(smem.is_captain?'#1d6fb5':'#f5f5f5')+';color:'+(smem.is_captain?'#fff':'#aaa')+';border:none;border-radius:6px;width:28px;height:28px;font-size:13px;cursor:pointer;">&#9733;</button>';
+                if(canManageTeams)html+='<button title="Fjern fra hold" onclick="removeTeamMemberDirect(\''+smem.id+'\',\''+sub.id+'\')" style="background:#fff0f0;color:#c0392b;border:1px solid #f5b7b1;border-radius:6px;width:28px;height:28px;font-size:14px;cursor:pointer;">&#10005;</button>';
                 html+='</div>';
               }
               html+='</div>';
@@ -1905,8 +1907,8 @@ function rEventModal(){
   html+='</select></div>';
 
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Dato og tid (start)</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):'')+'"></div>';
-  html+='<div><label class="flabel">Sluttid</label><input class="finput" id="evEndTime" type="time" value="'+(ed.end_time?new Date(ed.end_time).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'}):'')+'"></div>';
+  html+='<div><label class="flabel">Startdato og -tid</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):'')+'" onchange="autoFillEndDate()"></div>';
+  html+='<div><label class="flabel">Sluttidspunkt</label><input class="finput" id="evEndTime" type="datetime-local" value="'+(ed.end_time?localDT(ed.end_time):'')+'"></div>';
   html+='</div>';
   html+='<div class="frow">';
   html+='<div><label class="flabel">Tilmeldingsfrist</label><input class="finput" id="evDeadline" type="datetime-local" value="'+(ed.signup_deadline?localDT(ed.signup_deadline):'')+'"></div>';
@@ -1931,6 +1933,47 @@ function rEventModal(){
 
   html+='<div class="fg"><label class="flabel">Sted (valgfrit)</label><input class="finput" id="evLoc" value="'+esc(ed.location||'')+'" placeholder="Hal, adresse..."></div>';
   html+='<div class="fg"><label class="flabel">Beskrivelse (valgfrit)</label><textarea class="finput" id="evNotes" style="resize:vertical;min-height:60px;" placeholder="Ekstra info til spillerne...">'+esc(ed.notes||'')+'</textarea></div>';
+
+  // Player selection for matches (new events only)
+  if(!isEdit&&isMatch){
+    html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+    html+='<div class="flabel" style="margin-bottom:0;">Udtag spillere <span style="font-weight:400;color:#aaa;">(modtager invitation)</span></div>';
+    html+='<button type="button" onclick="toggleAllPlayers()" style="font-size:11px;color:#1d6fb5;background:none;border:none;cursor:pointer;text-decoration:underline;">V&#230;lg alle</button>';
+    html+='</div>';
+    // Get players from selected team
+    var selTeamId=(ed.team_id)||'';
+    var teamMembers=selTeamId&&STATE.teamMembersCache&&STATE.teamMembersCache[selTeamId]||[];
+    if(!teamMembers.length){
+      html+='<div style="font-size:12px;color:#aaa;">V&#230;lg et hold for at se spillere</div>';
+    } else {
+      var regulars=teamMembers.filter(function(m){return !m.is_reserve&&!m.is_trainer;});
+      var reserves=teamMembers.filter(function(m){return m.is_reserve;});
+      if(regulars.length){
+        html+='<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px;">Faste spillere</div>';
+        for(var upi=0;upi<regulars.length;upi++){
+          var um=regulars[upi];
+          var uname=getPlayerName(um.player_id);
+          html+='<label style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">';
+          html+='<input type="checkbox" class="evPlayerCb" value="'+um.player_id+'" checked style="width:16px;height:16px;">';
+          html+='<span style="font-size:13px;">'+esc(uname)+'</span>';
+          html+='</label>';
+        }
+      }
+      if(reserves.length){
+        html+='<div style="font-size:11px;font-weight:700;color:#b7770d;text-transform:uppercase;margin:10px 0 6px;">Reserver</div>';
+        for(var rpi=0;rpi<reserves.length;rpi++){
+          var rm=reserves[rpi];
+          var rname=getPlayerName(rm.player_id);
+          html+='<label style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">';
+          html+='<input type="checkbox" class="evPlayerCb" value="'+rm.player_id+'" style="width:16px;height:16px;">';
+          html+='<span style="font-size:13px;color:#888;">'+esc(rname)+' <span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:3px;padding:0 4px;">R</span></span>';
+          html+='</label>';
+        }
+      }
+    }
+    html+='</div>';
+  }
 
   html+='<div class="modal-actions">';
   if(isEdit)html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ed.id+'\')">Slet</button>';
@@ -2122,6 +2165,24 @@ window.toggleEvent=function(id){
   render();
 };
 
+window.toggleAllPlayers=function(){
+  var cbs=document.querySelectorAll('.evPlayerCb');
+  var allChecked=Array.prototype.every.call(cbs,function(cb){return cb.checked;});
+  for(var i=0;i<cbs.length;i++)cbs[i].checked=!allChecked;
+};
+
+window.autoFillEndDate=function(){
+  var startEl=document.getElementById('evDate');
+  var endEl=document.getElementById('evEndTime');
+  if(!startEl||!endEl||endEl.value)return;
+  // Pre-fill end with same date + 2 hours
+  var start=new Date(startEl.value);
+  if(isNaN(start))return;
+  start.setHours(start.getHours()+2);
+  var pad=function(n){return n<10?'0'+n:String(n);};
+  endEl.value=start.getFullYear()+'-'+pad(start.getMonth()+1)+'-'+pad(start.getDate())+'T'+pad(start.getHours())+':'+pad(start.getMinutes());
+};
+
 window.setEvType=function(type){
   document.getElementById('evType').value=type;
   var mf=document.getElementById('evMatchFields');
@@ -2184,14 +2245,7 @@ window.saveEvent=function(){
   var deadline=(document.getElementById('evDeadline')||{}).value;
   var endTimeVal=((document.getElementById('evEndTime')||{}).value||'').trim();
   var startDate=new Date(dateVal);
-  var endTime=null;
-  if(endTimeVal){
-    var endDate=new Date(startDate);
-    var tparts=endTimeVal.split(':');
-    endDate.setHours(parseInt(tparts[0]),parseInt(tparts[1]),0,0);
-    if(endDate<=startDate)endDate.setDate(endDate.getDate()+1);
-    endTime=endDate.toISOString();
-  }
+  var endTime=endTimeVal?new Date(endTimeVal).toISOString():null;
   var recurType=((document.getElementById('evRecur')||{}).value||'');
   var recurEnd=((document.getElementById('evRecurEnd')||{}).value||'');
   var data={
@@ -2243,6 +2297,21 @@ window.saveEvent=function(){
     sbPost('events',data).then(function(res){
       if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
       closeModal();
+      // Send invitations to selected players
+      var cbs=document.querySelectorAll('.evPlayerCb');
+      var selectedIds=[];
+      for(var i=0;i<cbs.length;i++){if(cbs[i].checked)selectedIds.push(cbs[i].value);}
+      if(selectedIds.length&&Array.isArray(res)&&res[0]){
+        var newEvId=res[0].id;
+        var evDate=new Date(data.date);
+        var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+        var title='Udtaget til kamp: '+data.title;
+        var body='Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.';
+        var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>Du er udtaget!</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Bekr\u00e6ft deltagelse</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+        for(var si=0;si<selectedIds.length;si++){
+          notifyPlayer(selectedIds[si],title,body,title,emailHtml);
+        }
+      }
       loadEvents().then(function(){return loadEventResponses();}).then(render);
     });
   }
@@ -2879,13 +2948,13 @@ window.enablePush=function(){
   var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
   var isChrome=/Chrome/.test(navigator.userAgent)&&!/Chromium|Edge/.test(navigator.userAgent);
   if(isIOS&&isChrome){
-    alert('Chrome p\u00e5 iPhone/iPad underst\u00f8tter ikke push-notifikationer.\n\nBrug i stedet:\n\u2022 Email-notifikationer (allerede aktiveret)\n\u2022 Eller \u00e5bn siden i Safari og tilf\u00f8j til hjemmeskærmen');
+    alert('Chrome p\u00e5 iPhone/iPad underst\u00f8tter ikke push-notifikationer.\n\nBrug i stedet:\n\u2022 Email-notifikationer\n\u2022 Eller \u00e5bn siden i Safari og tilf\u00f8j til hjemmeskærmen');
     return;
   }
   if(!('Notification' in window)){alert('Din browser underst\u00f8tter ikke notifikationer');return;}
   if(Notification.permission==='granted'){
+    // Already granted - just subscribe silently
     subscribeToPush();
-    alert('Notifikationer er allerede aktiveret!');
     return;
   }
   Notification.requestPermission().then(function(perm){
