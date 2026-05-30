@@ -2308,20 +2308,20 @@ window.saveEvent=function(){
   } else {
     sbPost('events',data).then(function(res){
       if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
-      closeModal();
-      // Send invitations to selected players
+      // Read selected players BEFORE closing modal
       var cbs=document.querySelectorAll('.evPlayerCb');
       var selectedIds=[];
       for(var i=0;i<cbs.length;i++){if(cbs[i].checked)selectedIds.push(cbs[i].value);}
-      if(selectedIds.length&&Array.isArray(res)&&res[0]){
-        var newEvId=res[0].id;
+      closeModal();
+      // Send invitations
+      if(selectedIds.length){
         var evDate=new Date(data.date);
         var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
-        var title='Udtaget til kamp: '+data.title;
-        var body='Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.';
+        var matchTitle='Udtaget til kamp: '+data.title;
+        var matchBody='Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.';
         var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>Du er udtaget!</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Bekr\u00e6ft deltagelse</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
         for(var si=0;si<selectedIds.length;si++){
-          notifyPlayer(selectedIds[si],title,body,title,emailHtml);
+          notifyPlayer(selectedIds[si],matchTitle,matchBody,matchTitle,emailHtml);
         }
       }
       loadEvents().then(function(){return loadEventResponses();}).then(render);
@@ -2794,7 +2794,7 @@ function rPlayerEventCard(ev,responses,isPast){
       html+=rRespondForm(ev.id,myResp);
     } else {
       html+='<div style="display:flex;gap:8px;">';
-      html+='<button class="btn btn-dark btn-sm" style="flex:1;padding:10px;" onclick="STATE.respondingTo=\''+ev.id+'\';render()">Tilmeld / Framel</button>';
+      html+='<button class="btn btn-dark btn-sm" style="flex:1;padding:10px;" onclick="STATE.respondingTo=\''+ev.id+'\';render()">Tilmeld / Afbud</button>';
       html+='</div>';
     }
   }
@@ -2808,8 +2808,8 @@ function rRespondForm(evId,existing){
   html+='<div style="font-size:12px;font-weight:600;color:#888;margin-bottom:8px;">Dit svar</div>';
   html+='<input class="finput" id="respNote" placeholder="Note (valgfrit, fx skadet, arbejde...)" style="margin-bottom:10px;" value="'+(existing&&existing.note?esc(existing.note):'')+'">';
   html+='<div style="display:flex;gap:8px;">';
-  html+='<button class="btn btn-dark btn-sm" style="flex:1;background:#1e8449;border-color:#1e8449;" onclick="submitResponse(\''+evId+'\',\'yes\')">&#10003; Ja, jeg deltager</button>';
-  html+='<button class="btn btn-red btn-sm" style="flex:1;" onclick="submitResponse(\''+evId+'\',\'no\')">&#10007; Nej, jeg kan ikke</button>';
+  html+='<button class="btn btn-dark btn-sm" style="flex:1;padding:10px;background:#1e8449;border-color:#1e8449;" onclick="submitResponse(\''+evId+'\',\'yes\')">&#10003; Tilmeld</button>';
+  html+='<button class="btn btn-red btn-sm" style="flex:1;" onclick="submitResponse(\''+evId+'\',\'no\')">&#10007; Afbud</button>';
   html+='</div>';
   html+='<button style="width:100%;margin-top:8px;background:none;border:none;color:#aaa;font-size:12px;cursor:pointer;" onclick="STATE.respondingTo=null;render()">Annuller</button>';
   html+='</div>';
