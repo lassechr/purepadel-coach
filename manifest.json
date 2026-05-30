@@ -1,7 +1,7 @@
 {
-  "name": "PurePadel Coach",
+  "name": "PurePadel",
   "short_name": "PurePadel",
-  "description": "PurePadel træner- og spillerplatform",
+  "description": "PurePadel – Padel Platform",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
