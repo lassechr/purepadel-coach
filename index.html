@@ -166,7 +166,7 @@ var STATE = {
   teams: [], events: [], eventResponses: [],
   editTeam: null, editEvent: null, openEvent: null,
   openTeam: null, teamMembersCache: {},
-  reserveInvite: null,
+  reserveInvite: null, playerCaptainTeamIds: [],
   teamFilter: 'all',
   editUserProfile: null
 };
@@ -1451,9 +1451,11 @@ function rHold(){
             html+='<div style="display:flex;align-items:center;gap:8px;">';
             html+='<span style="font-size:13px;font-weight:500;color:#111;">'+esc(pname)+'</span>';
             if(plevel)html+='<span style="color:#f5a623;font-size:11px;">'+'\u2605'.repeat(plevel)+'</span>';
+            if(mem.is_captain)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 6px;">&#9733; Kaptajn</span>';
             html+='</div>';
             if(canManageTeams){
               html+='<div style="display:flex;gap:4px;">';
+              html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;background:'+(mem.is_captain?'#e8f0fb':'')+'" onclick="toggleCaptain(\''+mem.id+'\',\''+team.id+'\','+(mem.is_captain?'false':'true')+')">'+( mem.is_captain?'&#9733; Kaptajn':'Kaptajn?')+'</button>';
               html+='<button class="btn btn-light btn-sm" style="font-size:10px;padding:2px 6px;" onclick="toggleReserve(\''+mem.id+'\',\''+team.id+'\',true)">&rarr; Reserve</button>';
               html+='<button class="btn btn-red btn-sm" style="font-size:10px;padding:2px 6px;" onclick="removeTeamMemberDirect(\''+mem.id+'\',\''+team.id+'\')">Fjern</button>';
               html+='</div>';
@@ -1507,6 +1509,8 @@ function rEventRow(ev,team,isPast){
   var d=new Date(ev.date);
   var dateStr=d.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
   var timeStr=d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
+  var endTimeStr=ev.end_time?new Date(ev.end_time).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'}):null;
+  var timeDisplay=endTimeStr?timeStr+'\u2013'+endTimeStr:timeStr;
   var isMatch=ev.type==='match';
   var typeColor=isMatch?'#c0392b':'#1d6fb5';
   var typeBg=isMatch?'#fdecea':'#e8f0fb';
@@ -1524,7 +1528,7 @@ function rEventRow(ev,team,isPast){
   if(isMatch&&ev.home_away){html+='<span style="font-size:10px;color:#888;">'+(ev.home_away==='home'?'Hjemme':'Ude')+'</span>';}
   html+='<span style="font-size:14px;font-weight:600;color:#111;">'+esc(ev.title)+'</span>';
   html+='</div>';
-  html+='<div style="font-size:12px;color:#888;margin-top:3px;">'+dateStr+' &bull; '+timeStr;
+  html+='<div style="font-size:12px;color:#888;margin-top:3px;">'+dateStr+' &bull; '+timeDisplay;
   if(ev.location)html+=' &bull; '+esc(ev.location);
   html+='</div>';
   if(deadline){html+='<div style="font-size:11px;color:'+(deadlinePast?'#c0392b':'#b7770d')+';margin-top:2px;">Frist: '+deadline.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+'</div>';}
@@ -1674,18 +1678,25 @@ function rTeamModal(){
 function rEventModal(){
   var ed=STATE.editEvent||{};
   var isEdit=!!(ed&&ed.id);
-  var isMatch=ed.type==='match';
-  var teams=STATE.teams;
+  var isCaptainMode=!!(ed&&ed._captainMode)||STATE.profile.role==='player';
+  var isMatch=ed.type==='match'||isCaptainMode;
+  var teams=isCaptainMode
+    ?STATE.teams.filter(function(t){return (STATE.playerCaptainTeamIds||[]).indexOf(t.id)>=0;})
+    :STATE.teams;
   var html='<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">';
-  html+='<div class="modal-title">'+(isEdit?'Rediger begivenhed':'Ny begivenhed')+'</div>';
+  html+='<div class="modal-title">'+(isEdit?'Rediger begivenhed':'Ny begivenhed')+(isCaptainMode?' (Kamp)':'')+'</div>';
 
   html+='<div class="fg"><label class="flabel">Titel</label><input class="finput" id="evT" value="'+esc(ed.title||'')+'" placeholder="fx Torsdagstr&#230;ning, Kamp vs Padel Nord..."></div>';
 
-  html+='<div class="fg"><label class="flabel">Type</label>';
-  html+='<div style="display:flex;gap:8px;margin-top:6px;">';
-  html+='<button id="evTypeTr" class="btn '+(isMatch?'btn-light':'btn-dark')+' btn-sm" onclick="setEvType(\'training\')">Tr&#230;ning</button>';
-  html+='<button id="evTypeKa" class="btn '+(isMatch?'btn-dark':'btn-light')+' btn-sm" onclick="setEvType(\'match\')">Kamp</button>';
-  html+='</div><input type="hidden" id="evType" value="'+(ed.type||'training')+'"></div>';
+  if(!isCaptainMode){
+    html+='<div class="fg"><label class="flabel">Type</label>';
+    html+='<div style="display:flex;gap:8px;margin-top:6px;">';
+    html+='<button id="evTypeTr" class="btn '+(isMatch?'btn-light':'btn-dark')+' btn-sm" onclick="setEvType(\'training\')">Tr&#230;ning</button>';
+    html+='<button id="evTypeKa" class="btn '+(isMatch?'btn-dark':'btn-light')+' btn-sm" onclick="setEvType(\'match\')">Kamp</button>';
+    html+='</div><input type="hidden" id="evType" value="'+(ed.type||'training')+'"></div>';
+  } else {
+    html+='<input type="hidden" id="evType" value="match">';
+  }
 
   html+='<div id="evMatchFields" style="'+(isMatch?'':'display:none;')+'">';
   html+='<div class="frow">';
@@ -1702,9 +1713,29 @@ function rEventModal(){
   html+='</select></div>';
 
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Dato og tid</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):'')+'"></div>';
-  html+='<div><label class="flabel">Tilmeldingsfrist</label><input class="finput" id="evDeadline" type="datetime-local" value="'+(ed.signup_deadline?localDT(ed.signup_deadline):'')+'"></div>';
+  html+='<div><label class="flabel">Dato og tid (start)</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):'')+'"></div>';
+  html+='<div><label class="flabel">Sluttid</label><input class="finput" id="evEndTime" type="time" value="'+(ed.end_time?new Date(ed.end_time).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'}):'')+'"></div>';
   html+='</div>';
+  html+='<div class="frow">';
+  html+='<div><label class="flabel">Tilmeldingsfrist</label><input class="finput" id="evDeadline" type="datetime-local" value="'+(ed.signup_deadline?localDT(ed.signup_deadline):'')+'"></div>';
+  html+='<div></div>';
+  html+='</div>';
+  // Recurrence
+  if(!ed.id){
+    html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html+='<div class="flabel" style="margin-bottom:10px;">Tilbagevendende begivenhed</div>';
+    html+='<select class="finput" id="evRecur" onchange="toggleRecurEnd()">';
+    html+='<option value="">Enkelt begivenhed</option>';
+    html+='<option value="weekly">Ugentlig (samme ugedag)</option>';
+    html+='<option value="biweekly">Hver 2. uge</option>';
+    html+='</select>';
+    html+='<div id="evRecurEndWrap" style="display:none;margin-top:10px;">';
+    html+='<label class="flabel">Gentag til og med</label>';
+    html+='<input class="finput" id="evRecurEnd" type="date">';
+    html+='</div></div>';
+  } else if(ed.recurrence_id){
+    html+='<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#b7770d;">Del af tilbagevendende serie &bull; <span style="cursor:pointer;text-decoration:underline;" onclick="deleteEventSeries(\''+ed.recurrence_id+'\')">Slet hele serien</span></div>';
+  }
 
   html+='<div class="fg"><label class="flabel">Sted (valgfrit)</label><input class="finput" id="evLoc" value="'+esc(ed.location||'')+'" placeholder="Hal, adresse..."></div>';
   html+='<div class="fg"><label class="flabel">Beskrivelse (valgfrit)</label><textarea class="finput" id="evNotes" style="resize:vertical;min-height:60px;" placeholder="Ekstra info til spillerne...">'+esc(ed.notes||'')+'</textarea></div>';
@@ -1763,6 +1794,14 @@ function loadTeamMembersCache(){
     }
   }).catch(function(){});
 }
+
+window.toggleCaptain=function(memberId,teamId,makeCaptain){
+  sbPatch('team_members',{is_captain:makeCaptain},'id=eq.'+memberId).then(function(){
+    if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+    delete STATE.teamMembersCache[teamId];
+    loadTeamMembersCache().then(render);
+  });
+};
 
 window.toggleReserve=function(memberId,teamId,makeReserve){
   sbPatch('team_members',{is_reserve:makeReserve},'id=eq.'+memberId).then(function(){
@@ -1907,12 +1946,25 @@ window.saveEvent=function(){
   if(!dateVal){alert('V\u00e6lg dato og tid');return;}
   var type=(document.getElementById('evType')||{}).value||'training';
   var deadline=(document.getElementById('evDeadline')||{}).value;
+  var endTimeVal=((document.getElementById('evEndTime')||{}).value||'').trim();
+  var startDate=new Date(dateVal);
+  var endTime=null;
+  if(endTimeVal){
+    var endDate=new Date(startDate);
+    var tparts=endTimeVal.split(':');
+    endDate.setHours(parseInt(tparts[0]),parseInt(tparts[1]),0,0);
+    if(endDate<=startDate)endDate.setDate(endDate.getDate()+1);
+    endTime=endDate.toISOString();
+  }
+  var recurType=((document.getElementById('evRecur')||{}).value||'');
+  var recurEnd=((document.getElementById('evRecurEnd')||{}).value||'');
   var data={
     team_id:teamId,
     trainer_id:STATE.profile.id,
     title:title.trim(),
     type:type,
-    date:new Date(dateVal).toISOString(),
+    date:startDate.toISOString(),
+    end_time:endTime,
     signup_deadline:deadline?new Date(deadline).toISOString():null,
     location:((document.getElementById('evLoc')||{}).value||'').trim()||null,
     notes:((document.getElementById('evNotes')||{}).value||'').trim()||null,
@@ -1920,10 +1972,63 @@ window.saveEvent=function(){
     home_away:type==='match'?(document.getElementById('evHA')||{}).value||null:null
   };
   var ed=STATE.editEvent;
-  var p=ed&&ed.id?sbPatch('events',data,'id=eq.'+ed.id):sbPost('events',data);
-  p.then(function(){
-    closeModal();
-    loadEvents().then(function(){return loadEventResponses();}).then(render);
+  if(ed&&ed.id){
+    sbPatch('events',data,'id=eq.'+ed.id).then(function(res){
+      if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
+      closeModal();
+      loadEvents().then(function(){return loadEventResponses();}).then(render);
+    });
+  } else if(recurType&&recurEnd){
+    var recId=(typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).substr(2));
+    var promises=[];
+    var cur=new Date(startDate);
+    var endDateObj=new Date(recurEnd+'T23:59:59');
+    var interval=recurType==='biweekly'?14:7;
+    while(cur<=endDateObj){
+      var evData=JSON.parse(JSON.stringify(data));
+      evData.date=new Date(cur).toISOString();
+      evData.recurrence_id=recId;
+      if(endTimeVal){
+        var ed2=new Date(cur);
+        var p2=endTimeVal.split(':');
+        ed2.setHours(parseInt(p2[0]),parseInt(p2[1]),0,0);
+        if(ed2<=cur)ed2.setDate(ed2.getDate()+1);
+        evData.end_time=ed2.toISOString();
+      }
+      promises.push(sbPost('events',evData));
+      cur.setDate(cur.getDate()+interval);
+    }
+    Promise.all(promises).then(function(){
+      closeModal();
+      loadEvents().then(function(){return loadEventResponses();}).then(render);
+      alert('Oprettet '+promises.length+' begivenheder i serien');
+    });
+  } else {
+    sbPost('events',data).then(function(res){
+      if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
+      closeModal();
+      loadEvents().then(function(){return loadEventResponses();}).then(render);
+    });
+  }
+};
+
+window.toggleRecurEnd=function(){
+  var sel=document.getElementById('evRecur');
+  var wrap=document.getElementById('evRecurEndWrap');
+  if(wrap)wrap.style.display=sel&&sel.value?'':'none';
+};
+
+window.deleteEventSeries=function(recurrenceId){
+  if(!confirm('Slet hele serien? Alle begivenheder i serien slettes.'))return;
+  // Load all events with this recurrence_id and delete them
+  sbGet('events','recurrence_id=eq.'+recurrenceId).then(function(evs){
+    if(!Array.isArray(evs))return;
+    var dels=evs.map(function(e){return sbDelete('events','id=eq.'+e.id);});
+    Promise.all(dels).then(function(){
+      closeModal();
+      STATE.openEvent=null;
+      loadEvents().then(function(){return loadEventResponses();}).then(render);
+    });
   });
 };
 
@@ -2203,6 +2308,7 @@ function rPlayerApp(){
   // My teams overview
   var myTeams=STATE.playerTeams||[];
   var myMemberships=STATE.playerTeamMemberships||[];
+  var captainTeamIds=STATE.playerCaptainTeamIds||[];
   if(myTeams.length){
     html+='<div style="margin-bottom:16px;">';
     html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Mine hold</div>';
@@ -2210,10 +2316,42 @@ function rPlayerApp(){
       var mt=myTeams[ti];
       var mem=myMemberships.filter(function(m){return m.team_id===mt.id;})[0];
       var isRes=mem&&mem.is_reserve;
+      var isCap=mem&&mem.is_captain;
       html+='<div style="display:inline-flex;align-items:center;gap:6px;background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:6px 12px;margin-right:8px;margin-bottom:8px;">';
       html+='<span style="font-size:13px;font-weight:500;">'+esc(mt.name)+'</span>';
+      if(isCap)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 5px;">&#9733; Kaptajn</span>';
       if(isRes)html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 5px;">Reserve</span>';
       html+='</div>';
+    }
+    html+='</div>';
+  }
+
+  // Captain section – create matches
+  if(captainTeamIds.length){
+    html+='<div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:12px;padding:14px;margin-bottom:16px;">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+    html+='<div style="font-size:13px;font-weight:700;color:#1d6fb5;">&#9733; Kaptajn-panel</div>';
+    html+='<button class="btn btn-dark btn-sm" onclick="captainNewMatch()">+ Opret kamp</button>';
+    html+='</div>';
+    // Show matches captain created on their team
+    var captainEvents=STATE.playerEvents.filter(function(e){return e.type==='match'&&captainTeamIds.indexOf(e.team_id)>=0;});
+    if(!captainEvents.length){
+      html+='<div style="font-size:12px;color:#888;">Ingen kampe oprettet endnu</div>';
+    } else {
+      for(var ci=0;ci<captainEvents.length;ci++){
+        var ce=captainEvents[ci];
+        var ceResp=STATE.playerResponses.filter(function(r){return r.event_id===ce.id;});
+        var ceYes=ceResp.filter(function(r){return r.response==='yes';}).length;
+        var ceNo=ceResp.filter(function(r){return r.response==='no';}).length;
+        var ced=new Date(ce.date);
+        html+='<div style="background:#fff;border-radius:8px;padding:10px;margin-top:8px;cursor:pointer;" onclick="toggleEvent(\''+ce.id+'\')">';
+        html+='<div style="font-size:13px;font-weight:600;">'+esc(ce.title)+'</div>';
+        html+='<div style="font-size:11px;color:#888;margin-top:2px;">'+ced.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'})+' &bull; &#10003;'+ceYes+' / &#10007;'+ceNo+'</div>';
+        if(STATE.openEvent===ce.id){
+          html+=rCaptainEventDetail(ce,ceResp);
+        }
+        html+='</div>';
+      }
     }
     html+='</div>';
   }
@@ -2251,61 +2389,37 @@ function rPlayerApp(){
   // Notification preferences
   html+='<div style="margin-top:24px;background:#f9f9f9;border:1px solid #eee;border-radius:12px;padding:16px;">';
   html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Notifikationer</div>';
-
-  // Detect browser/OS
   var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
   var isChrome=/Chrome/.test(navigator.userAgent)&&!/Chromium|Edge/.test(navigator.userAgent);
   var isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   var notifGranted='Notification' in window&&Notification.permission==='granted';
   var pushSupported='PushManager' in window;
-
-  // Browser guidance box
   if(isIOS&&isChrome){
     html+='<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">';
-    html+='<strong>&#9888; Chrome p\u00e5 iPhone/iPad understøtter ikke push</strong><br>';
-    html+='Du modtager notifikationer via <strong>email</strong>.<br>';
-    html+='Vil du have push? \u00c5bn siden i <strong>Safari</strong> og tilf\u00f8j den til din hjemmeskærm:<br>';
-    html+='Del-ikon &#8594; "F\u00f8j til hjemmeskærm" &#8594; \u00c5bn appen derfra.';
-    html+='</div>';
-  } else if(isIOS&&!isSafari){
-    html+='<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">';
-    html+='<strong>&#9888; Push kræver Safari p\u00e5 iPhone/iPad</strong><br>';
-    html+='\u00c5bn siden i Safari og tilf\u00f8j til hjemmeskærmen for at f\u00e5 push-notifikationer.';
+    html+='<strong>&#9888; Chrome p\u00e5 iPhone/iPad underst\u00f8tter ikke push</strong><br>Du modtager notifikationer via <strong>email</strong>.<br>\u00c5bn siden i <strong>Safari</strong> og tilf\u00f8j til hjemmeskærmen for push.';
     html+='</div>';
   } else if(isIOS&&isSafari&&!pushSupported){
     html+='<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#856404;">';
-    html+='<strong>&#9888; Tilf\u00f8j til hjemmeskærm for push</strong><br>';
-    html+='Del-ikon &#8594; "F\u00f8j til hjemmeskærm" &#8594; \u00c5bn appen derfra.';
+    html+='<strong>&#9888; Tilf\u00f8j til hjemmeskærm for push</strong><br>Del-ikon &#8594; \"F\u00f8j til hjemmeskærm\" &#8594; \u00c5bn appen derfra.';
     html+='</div>';
   }
-
-  // Push toggle
   var pushOn=p.notify_push!==false;
+  var emailOn=p.notify_email!==false;
   html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;">';
   html+='<div><div style="font-size:13px;font-weight:500;">Push-notifikationer</div>';
-  html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">';
-  if(!pushSupported){html+='Ikke understøttet i denne browser';}
-  else if(notifGranted){html+='Aktiveret i browser';}
-  else{html+='Ikke aktiveret i browser';}
-  html+='</div></div>';
-  html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
-  html+='<input type="checkbox" '+(pushOn&&pushSupported?'checked':'')+' '+(pushSupported?'':'disabled')+' onchange="saveNotifyPref(\'push\',this.checked)" style="width:18px;height:18px;cursor:pointer;">';
-  html+='</label></div>';
-
-  // Email toggle
-  var emailOn=p.notify_email!==false;
-  html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">';
+  html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+((!pushSupported)?'Ikke underst\u00f8ttet i denne browser':notifGranted?'Aktiveret i browser':'Ikke aktiveret i browser')+'</div></div>';
+  html+='<input type="checkbox" id="notifPushCb" '+(pushOn&&pushSupported?'checked':'')+' '+(pushSupported?'':'disabled')+' style="width:20px;height:20px;cursor:pointer;">';
+  html+='</div>';
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;">';
   html+='<div><div style="font-size:13px;font-weight:500;">Email-notifikationer</div>';
   html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+esc(p.email||'')+'</div></div>';
-  html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
-  html+='<input type="checkbox" '+(emailOn?'checked':'')+' onchange="saveNotifyPref(\'email\',this.checked)" style="width:18px;height:18px;cursor:pointer;">';
-  html+='</label></div>';
-
-  if(pushSupported&&!notifGranted&&pushOn){
-    html+='<button onclick="enablePush()" style="width:100%;margin-top:10px;padding:10px;background:#111;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">&#128276; Aktiv\u00e9r push i browser</button>';
+  html+='<input type="checkbox" id="notifEmailCb" '+(emailOn?'checked':'')+' style="width:20px;height:20px;cursor:pointer;">';
+  html+='</div>';
+  html+='<button onclick="saveNotifyPrefs()" style="width:100%;margin-top:12px;padding:11px;background:#111;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">Gem notifikationsindstillinger</button>';
+  if(pushSupported&&!notifGranted){
+    html+='<button onclick="enablePush()" style="width:100%;margin-top:8px;padding:10px;background:#fff;color:#111;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">&#128276; Aktiv\u00e9r push i browser</button>';
   }
   html+='</div>';
-
   html+='</div></div>';
   return html;
 }
@@ -2448,7 +2562,7 @@ function loadPlayerData(){
       return Promise.resolve();
     }
     STATE.playerTeamMemberships=members;
-    // Regular teams (not reserve)
+    STATE.playerCaptainTeamIds=members.filter(function(m){return m.is_captain;}).map(function(m){return m.team_id;});
     var regularMemberships=members.filter(function(m){return !m.is_reserve;});
     var regularTeamIds=regularMemberships.map(function(m){return m.team_id;});
     return sbGet('teams','id=in.('+(regularTeamIds.length?regularTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
@@ -2562,6 +2676,66 @@ function saveSubscription(sub){
 if('serviceWorker' in navigator){
   registerServiceWorker();
 }
+
+function rCaptainEventDetail(ev,responses){
+  var yes=responses.filter(function(r){return r.response==='yes';});
+  var no=responses.filter(function(r){return r.response==='no';});
+  var html='<div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;">';
+  html+='<div style="font-size:11px;font-weight:700;color:#1e8449;text-transform:uppercase;margin-bottom:6px;">Tilmeldt ('+yes.length+')</div>';
+  for(var i=0;i<yes.length;i++){
+    html+='<div style="font-size:12px;padding:3px 0;">'+esc(getPlayerName(yes[i].player_id));
+    if(yes[i].note)html+=' <span style="color:#888;font-style:italic;">'+esc(yes[i].note)+'</span>';
+    html+='</div>';
+  }
+  html+='<div style="font-size:11px;font-weight:700;color:#c0392b;text-transform:uppercase;margin:8px 0 6px;">Frameldt ('+no.length+')</div>';
+  for(var j=0;j<no.length;j++){
+    html+='<div style="font-size:12px;padding:3px 0;color:#888;">'+esc(getPlayerName(no[j].player_id));
+    if(no[j].note)html+=' <span style="font-style:italic;">'+esc(no[j].note)+'</span>';
+    html+='</div>';
+  }
+  html+='<div style="display:flex;gap:6px;margin-top:10px;">';
+  html+='<button class="btn btn-dark btn-sm" onclick="captainSendReminder(\''+ev.id+'\')">Send p&#229;mindelse</button>';
+  html+='<button class="btn btn-light btn-sm" onclick="showReserveInvite(\''+ev.id+'\')">Invit\u00e9r reserve</button>';
+  html+='</div>';
+  if(STATE.reserveInvite===ev.id){
+    var captainTeamIds=STATE.playerCaptainTeamIds||[];
+    var teamMembers=[];
+    for(var tci=0;tci<captainTeamIds.length;tci++){
+      var tm=STATE.teamMembersCache&&STATE.teamMembersCache[captainTeamIds[tci]]||[];
+      teamMembers=teamMembers.concat(tm);
+    }
+    var reserves=teamMembers.filter(function(m){return m.is_reserve;});
+    if(!reserves.length){
+      html+='<div style="font-size:12px;color:#aaa;margin-top:6px;">Ingen reserver p\u00e5 holdet</div>';
+    } else {
+      html+='<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:10px;margin-top:8px;">';
+      for(var rci=0;rci<reserves.length;rci++){
+        var rc=reserves[rci];
+        var alreadyInvited=responses.some(function(r){return r.player_id===rc.player_id;});
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;">';
+        html+='<span style="font-size:12px;">'+esc(getPlayerName(rc.player_id))+'</span>';
+        if(alreadyInvited){html+='<span style="font-size:11px;color:#1e8449;">Inviteret</span>';}
+        else{html+='<button class="btn btn-dark btn-sm" onclick="inviteReserve(\''+ev.id+'\',\''+rc.player_id+'\')">Invit\u00e9r</button>';}
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+  }
+  html+='</div>';
+  return html;
+}
+
+window.captainNewMatch=function(){
+  var captainTeamIds=STATE.playerCaptainTeamIds||[];
+  if(!captainTeamIds.length)return;
+  STATE.editEvent={team_id:captainTeamIds[0],type:'match',_captainMode:true};
+  STATE.modal='edit_event';
+  render();
+};
+
+window.captainSendReminder=function(eventId){
+  sendReminder(eventId);
+};
 
 window.doForgotPassword=function(){
   var email=prompt('Indtast din email-adresse:');
@@ -2952,6 +3126,21 @@ window.approvePlayer=function(id){
   });
 };
 
+window.saveNotifyPrefs=function(){
+  var pushCb=document.getElementById('notifPushCb');
+  var emailCb=document.getElementById('notifEmailCb');
+  var pushVal=pushCb?pushCb.checked:STATE.profile.notify_push!==false;
+  var emailVal=emailCb?emailCb.checked:STATE.profile.notify_email!==false;
+  var btn=document.querySelector('[onclick="saveNotifyPrefs()"]');
+  if(btn)btn.textContent='Gemmer...';
+  sbPatch('profiles',{notify_push:pushVal,notify_email:emailVal},'id=eq.'+STATE.profile.id).then(function(){
+    STATE.profile.notify_push=pushVal;
+    STATE.profile.notify_email=emailVal;
+    if(pushVal&&'PushManager' in window){enablePush();}
+    if(btn){btn.textContent='Gemt!';setTimeout(function(){if(btn)btn.textContent='Gem notifikationsindstillinger';},2000);}
+  });
+};
+
 window.saveNotifyPref=function(type,val){
   var data={};
   if(type==='push')data.notify_push=val;
@@ -2959,7 +3148,6 @@ window.saveNotifyPref=function(type,val){
   sbPatch('profiles',data,'id=eq.'+STATE.profile.id).then(function(){
     STATE.profile['notify_'+type]=val;
     if(type==='push'&&val){enablePush();}
-    render();
   });
 };
 
