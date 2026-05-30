@@ -3428,6 +3428,7 @@ window.toggleClubVisible=function(id,visible){
 window.saveEditUser=function(){
   var p=STATE.editUserProfile;if(!p)return;
   var name=(document.getElementById('euN')||{}).value||'';
+  if(!name.trim()){alert('Angiv et navn');return;}
   var clubName=(document.getElementById('euCN')||{}).value||'';
   var type=(document.getElementById('euT')||{}).value||'trainer';
   var exp=(document.getElementById('euExp')||{}).value||null;
@@ -3446,8 +3447,16 @@ window.saveEditUser=function(){
     subscription_expires:exp?exp+'T00:00:00Z':null
   };
   sbPatch('profiles',data,'id=eq.'+p.id).then(function(){
+    if(isPlayer){
+      sbGet('players','profile_id=eq.'+p.id).then(function(existing){
+        if(!Array.isArray(existing)||!existing.length){
+          var cid=p.club_id||clubId();
+          sbPost('players',{club_id:cid,name:name.trim()||p.name||p.email,level:3,side:'begge',notes:'',profile_id:p.id});
+        }
+      });
+    }
     closeModal();
-    loadAllProfiles().then(render);
+    loadAllProfiles().then(function(){return loadPlayers();}).then(render);
   });
 };
 
