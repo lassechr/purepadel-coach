@@ -2401,6 +2401,19 @@ function rEventModal(){
           html+='</label>';
         }
       }
+      // Trainer-as-player: show self as selectable if is_player and not already in list
+      if(STATE.profile&&STATE.profile.is_player){
+        var alreadyInList=false;
+        for(var chi=0;chi<regulars.length;chi++){if(regulars[chi].player_id===STATE.profile.id){alreadyInList=true;break;}}
+        if(!alreadyInList)for(var chi2=0;chi2<reserves.length;chi2++){if(reserves[chi2].player_id===STATE.profile.id){alreadyInList=true;break;}}
+        if(!alreadyInList){
+          html+='<div style="font-size:11px;font-weight:700;color:#7d3c98;text-transform:uppercase;margin:10px 0 6px;">Træner som spiller</div>';
+          html+='<label style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">';
+          html+='<input type="checkbox" class="evPlayerCb" value="'+STATE.profile.id+'" checked style="width:16px;height:16px;">';
+          html+='<span style="font-size:13px;">'+esc(STATE.profile.name||STATE.profile.email)+' <span style="font-size:10px;background:#f5eef8;color:#7d3c98;border:1px solid #d7bde2;border-radius:3px;padding:0 4px;">Træner</span></span>';
+          html+='</label>';
+        }
+      }
     }
     html+='</div>';
   }
@@ -2764,16 +2777,18 @@ window.saveEvent=function(){
       var cbs=document.querySelectorAll('.evPlayerCb');
       var selectedIds=[];
       for(var i=0;i<cbs.length;i++){if(cbs[i].checked)selectedIds.push(cbs[i].value);}
+      var evId=Array.isArray(res)&&res[0]?res[0].id:null;
       closeModal();
-      // Send invitations
-      if(selectedIds.length){
+      // Create event_responses + send invitations
+      if(selectedIds.length&&evId){
         var evDate=new Date(data.date);
         var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
         var matchTitle='Udtaget til kamp: '+data.title;
         var matchBody='Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.';
         var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>Du er udtaget!</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Bekr\u00e6ft deltagelse</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
         for(var si=0;si<selectedIds.length;si++){
-          notifyPlayer(selectedIds[si],matchTitle,matchBody,matchTitle,emailHtml);
+          sbPost('event_responses',{event_id:evId,player_id:selectedIds[si],response:null});
+          notifyPlayer(selectedIds[si],matchTitle,matchBody,matchTitle,emailHtml,evId);
         }
       }
       loadEvents().then(function(){return loadEventResponses();}).then(render);
