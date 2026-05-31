@@ -1,0 +1,45 @@
+# PurePadel Coach — Apache konfiguration
+# Upload denne fil til roden af din webserver sammen med de øvrige filer
+
+# ── Cache-Control ─────────────────────────────────────────────
+# Browseren må IKKE cache index.html — sikrer at brugere altid får nyeste version
+<FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>
+
+# Service Worker må heller ikke caches
+<FilesMatch "^service-worker\.js$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>
+
+# Ikoner og manifest kan caches kortvarigt
+<FilesMatch "\.(png|json)$">
+    Header set Cache-Control "public, max-age=86400"
+</FilesMatch>
+
+# ── MIME-typer ────────────────────────────────────────────────
+AddType application/manifest+json .json
+AddType text/javascript .js
+
+# ── Sikkerhedsheaders ─────────────────────────────────────────
+Header set X-Content-Type-Options "nosniff"
+Header set X-Frame-Options "SAMEORIGIN"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+# ── Komprimering (hvis mod_deflate er aktiveret) ──────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# ── SPA: send alle ukendte stier til index.html ───────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.html [L,QSA]
+</IfModule>
