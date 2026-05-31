@@ -854,6 +854,65 @@ function rPlayers() {
     +'<button class="btn btn-dark" onclick="openModal(\'add_player\')">+ Tilføj</button>'
     +'</div></div>';
 
+  // Traener oversigt for club_admin
+  if(role==='club_admin'||role==='superadmin'){
+    var myClubId2=STATE.profile.role==='club_admin'?STATE.profile.id:null;
+    var trainerProfiles=STATE.allProfiles.filter(function(p){
+      return p.role==='trainer'&&(!myClubId2||p.club_id===myClubId2);
+    });
+    // Find også spiller-trænere
+    var playerTrainers=[];
+    if(STATE.teamMembersCache){
+      for(var trtk in STATE.teamMembersCache){
+        var trtms2=STATE.teamMembersCache[trtk];
+        for(var trti3=0;trti3<trtms2.length;trti3++){
+          if(trtms2[trti3].is_trainer){
+            var trProf=STATE.allProfiles.filter(function(p){return p.id===trtms2[trti3].player_id;})[0];
+            if(trProf&&trProf.role==='trainer'){
+              var alreadyIn=trainerProfiles.some(function(p){return p.id===trProf.id;});
+              if(!alreadyIn)trainerProfiles.push(trProf);
+            }
+          }
+        }
+      }
+    }
+    if(trainerProfiles.length){
+      html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:16px;">';
+      html+='<div style="font-size:12px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">TRÆNERE</div>';
+      for(var tri=0;tri<trainerProfiles.length;tri++){
+        var trp=trainerProfiles[tri];
+        // Find hvilke hold de er træner på
+        var trHold=[];
+        if(STATE.teamMembersCache){
+          for(var trhtk in STATE.teamMembersCache){
+            var trhtms=STATE.teamMembersCache[trhtk];
+            for(var trhti=0;trhti<trhtms.length;trhti++){
+              if(trhtms[trhti].player_id===trp.id&&trhtms[trhti].is_trainer){
+                var trhTeam=STATE.teams.filter(function(t){return t.id===trhtk;})[0];
+                if(trhTeam)trHold.push(trhTeam.name);
+              }
+            }
+          }
+        }
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #eee;flex-wrap:wrap;">';
+        html+='<div style="flex:1;min-width:140px;">';
+        html+='<div style="font-size:13px;font-weight:600;color:#111;">'+esc(trp.name||trp.email)+'</div>';
+        html+='<div style="font-size:11px;color:#888;">'+esc(trp.email||'')+'</div>';
+        html+='</div>';
+        html+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+        if(trHold.length){
+          for(var trhi=0;trhi<trHold.length;trhi++){
+            html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;font-weight:600;">'+esc(trHold[trhi])+'</span>';
+          }
+        } else {
+          html+='<span style="font-size:11px;color:#aaa;">Ingen hold tildelt</span>';
+        }
+        html+='</div></div>';
+      }
+      html+='</div>';
+    }
+  }
+
   // Pending players for club_admin
   if(role==='club_admin'||role==='superadmin'){
     var myClubId=STATE.profile.id;
