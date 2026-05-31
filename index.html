@@ -226,7 +226,8 @@ var STATE = {
   openTeam: null, teamMembersCache: {},
   reserveInvite: null, playerCaptainTeamIds: [],
   teamFilter: 'all',
-  editUserProfile: null
+  editUserProfile: null,
+  selectedPlayers: []
 };
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -965,6 +966,21 @@ function rPlayers() {
     }
   }
 
+  // Vælg alle / slet valgte toolbar (kun for club_admin og superadmin)
+  if(role==='club_admin'||role==='superadmin'){
+    var selCount=STATE.selectedPlayers.length;
+    var allIds=uniquePlayers.map(function(p){return p.id;});
+    var allSelected=allIds.length>0&&allIds.every(function(id){return STATE.selectedPlayers.indexOf(id)>=0;});
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0 8px;flex-wrap:wrap;">';
+    html+='<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#555;user-select:none;">';
+    html+='<input type="checkbox" '+(allSelected?'checked':'')+' onchange="toggleSelectAllPlayers(this.checked)" style="width:16px;height:16px;cursor:pointer;"> Vælg alle</label>';
+    if(selCount>0){
+      html+='<span style="font-size:13px;color:#888;">'+selCount+' valgt</span>';
+      html+='<button class="btn btn-red btn-sm" onclick="deleteSelectedPlayers()">Slet valgte ('+selCount+')</button>';
+    }
+    html+='</div>';
+  }
+
   for(var pi=0;pi<uniquePlayers.length;pi++){
     var p=uniquePlayers[pi];var ac=acolor(p.id);var si2=sideInfo(p.side);
     var canManage=(role==='club_admin'||role==='superadmin');
@@ -1010,7 +1026,11 @@ function rPlayers() {
       html+='</div></div></div>';
       continue;
     }
-    html+='<div class="card pcard">';
+    var isSelected=STATE.selectedPlayers.indexOf(p.id)>=0;
+    html+='<div class="card pcard" style="'+(isSelected?'background:#f0f7ff;border-color:#b3cef0;':'')+'">';
+    if(canManage){
+      html+='<input type="checkbox" '+(isSelected?'checked':'')+' onchange="toggleSelectPlayer(\''+p.id+'\',this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;margin-right:2px;" onclick="event.stopPropagation()">';
+    }
     html+='<div class="avatar" style="color:'+ac.color+';background:'+ac.bg+';border-color:'+ac.border+';">'+initials(p.name)+'</div>';
     html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:600;color:#111;">'+esc(p.name)+'</div>';
@@ -3819,7 +3839,40 @@ window.delPlayer=function(id){
   if(!confirm('Slet spiller?'))return;
   sbDelete('players','id=eq.'+id).then(function(){
     STATE.att=STATE.att.filter(function(a){return a!==id;});
+    STATE.selectedPlayers=STATE.selectedPlayers.filter(function(s){return s!==id;});
     closeModal();loadPlayers().then(render);
+  });
+};
+
+window.toggleSelectPlayer=function(id,checked){
+  if(checked){
+    if(STATE.selectedPlayers.indexOf(id)<0)STATE.selectedPlayers.push(id);
+  } else {
+    STATE.selectedPlayers=STATE.selectedPlayers.filter(function(s){return s!==id;});
+  }
+  render();
+};
+
+window.toggleSelectAllPlayers=function(checked){
+  var seenP={};var uP=[];
+  for(var di=0;di<STATE.players.length;di++){
+    var dp=STATE.players[di];
+    if(dp.profile_id){if(!seenP[dp.profile_id]){seenP[dp.profile_id]=true;uP.push(dp);}}
+    else{uP.push(dp);}
+  }
+  STATE.selectedPlayers=checked?uP.map(function(p){return p.id;}):[];
+  render();
+};
+
+window.deleteSelectedPlayers=function(){
+  var ids=STATE.selectedPlayers.slice();
+  if(!ids.length)return;
+  if(!confirm('Slet '+ids.length+' spiller(e)? Dette kan ikke fortrydes.'))return;
+  var dels=ids.map(function(id){return sbDelete('players','id=eq.'+id);});
+  Promise.all(dels).then(function(){
+    STATE.att=STATE.att.filter(function(a){return ids.indexOf(a)<0;});
+    STATE.selectedPlayers=[];
+    loadPlayers().then(render);
   });
 };
 
