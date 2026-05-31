@@ -2223,24 +2223,8 @@ window.addPlayerToTeam=function(sel,playerId){
     if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    // Ingen login - opret skygge-profil i profiles
-    var playerName2='';
-    for(var pi2=0;pi2<STATE.players.length;pi2++){if(STATE.players[pi2].id===playerId){playerName2=STATE.players[pi2].name||'';break;}}
-    var cid2=clubId();
-    var newId=genUUID();
-    sbPost('profiles',{id:newId,name:playerName2,role:'player',status:'active',club_id:cid2,notify_push:false,notify_email:false}).then(function(newProf){
-      var np=Array.isArray(newProf)?newProf[0]:newProf;
-      if(!np||!np.id){alert('Kunne ikke oprette profil: '+JSON.stringify(newProf).substring(0,200));return;}
-      sbPatch('players',{profile_id:np.id},'id=eq.'+playerId).then(function(){
-        sbPost('team_members',{team_id:teamId,player_id:np.id,is_reserve:isReserve}).then(function(res2){
-          if(res2&&res2.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
-          if(!STATE.teamMembersCache)STATE.teamMembersCache={};
-          delete STATE.teamMembersCache[teamId];
-          loadPlayers().then(function(){return loadTeamMembersCache();}).then(render);
-        });
-      });
-    });
-    return;
+    // Ingen login - brug players.id direkte (foreign key constraint fjernet)
+    profileId=playerId;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId,is_reserve:isReserve}).then(function(res){
     if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
@@ -2621,23 +2605,7 @@ window.addTeamMember=function(teamId){
     if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    // Ingen login - opret skygge-profil
-    var pName2='';
-    for(var pi3=0;pi3<STATE.players.length;pi3++){if(STATE.players[pi3].id===playerId){pName2=STATE.players[pi3].name||'';break;}}
-    var newId2=genUUID();
-    sbPost('profiles',{id:newId2,name:pName2,role:'player',status:'active',club_id:clubId(),notify_push:false,notify_email:false}).then(function(npArr){
-      var np=Array.isArray(npArr)?npArr[0]:npArr;
-      if(!np||!np.id){alert('Kunne ikke oprette profil');return;}
-      sbPatch('players',{profile_id:np.id},'id=eq.'+playerId).then(function(){
-        sbPost('team_members',{team_id:teamId,player_id:np.id}).then(function(res){
-          if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
-          if(!STATE.teamMembersCache)STATE.teamMembersCache={};
-          delete STATE.teamMembersCache[teamId];
-          loadPlayers().then(function(){return loadTeamMembersCache();}).then(render);
-        });
-      });
-    });
-    return;
+    profileId=playerId;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId}).then(function(res){
     if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
@@ -4224,4 +4192,12 @@ if(STATE.session&&STATE.session.access_token){
 }
 </script>
 </body>
-</html>
+</html>sion=STATE.openSession===id?null:id;render();};
+window.deleteSession=function(id){if(!confirm('Slet denne træning?'))return;sbDelete('sessions','id=eq.'+id).then(function(){loadSessions().then(render);});};
+window.promptSaveSession=function(){
+  var name=prompt('Navn på træningen:','Uge '+getWeekNumber(new Date())+' – '+new Date().toLocaleDateString('da-DK',{weekday:'long'}));
+  if(!name)return;
+  // Store player names in matches for historical lookup
+  var matchesWithNames=STATE.matches.map(function(m){
+    return {
+      t1:m.t1,t2:m.t2,round:m.r
