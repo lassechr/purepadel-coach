@@ -269,8 +269,14 @@ function loadProfile() {
       // Restore last active tab if available
       try{
         var saved=localStorage.getItem('pp_tab');
-        if(saved&&saved!=='admin'||STATE.profile.role==='superadmin'){
-          STATE.tab=saved||STATE.tab;
+        if(saved){
+          // Superadmin: tillad alle faner inkl. admin
+          // Andre: aldrig admin-fanen
+          if(STATE.profile.role==='superadmin'){
+            STATE.tab=saved;
+          } else if(saved!=='admin'){
+            STATE.tab=saved;
+          }
         }
       }catch(e){}
       // Request push permission and subscribe
