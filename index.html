@@ -2078,6 +2078,13 @@ function rEventDetail(ev,responses){
   var unanswered=STATE.players.filter(function(p){
     return !responses.find(function(r){return r.player_id===p.id;});
   });
+  // Trainer-as-player: find own response
+  var myTrainerResp=null;
+  if(STATE.profile&&STATE.profile.is_player){
+    for(var mri=0;mri<responses.length;mri++){
+      if(responses[mri].player_id===STATE.profile.id){myTrainerResp=responses[mri];break;}
+    }
+  }
   var html='<div style="background:#f9f9f9;padding:14px 16px;border-top:1px solid #eee;">';
 
   // YES
@@ -2141,6 +2148,43 @@ function rEventDetail(ev,responses){
       html+='</div>';
     }
   }
+
+  // Trainer-as-player: show own response section
+  if(STATE.profile&&STATE.profile.is_player){
+    var isPastEv=new Date(ev.date)<new Date();
+    var evDeadline=ev.signup_deadline?new Date(ev.signup_deadline):null;
+    var evDeadlinePast=evDeadline&&evDeadline<new Date();
+    var trainerCanRespond=!isPastEv&&(!evDeadline||!evDeadlinePast);
+    html+='<div style="margin-top:16px;border-top:2px solid #e5e5e5;padding-top:14px;">';
+    html+='<div style="font-size:11px;font-weight:700;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Mit svar (som spiller)</div>';
+    if(myTrainerResp&&myTrainerResp.response){
+      var trRespColor=myTrainerResp.response==='yes'?'#1e8449':'#c0392b';
+      var trRespBg=myTrainerResp.response==='yes'?'#eafaf1':'#fdecea';
+      var trRespLabel=myTrainerResp.response==='yes'?'&#10003; Tilmeldt':'&#10007; Frameldt';
+      html+='<span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;background:'+trRespBg+';color:'+trRespColor+';">'+trRespLabel+'</span>';
+      if(myTrainerResp.note)html+='<span style="font-size:11px;color:#888;margin-left:8px;font-style:italic;">'+esc(myTrainerResp.note)+'</span>';
+    } else {
+      html+='<span style="font-size:12px;color:#aaa;">Ikke svaret endnu</span>';
+    }
+    if(trainerCanRespond){
+      if(STATE.trainerRespondingTo===ev.id){
+        html+='<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;margin-top:10px;">';
+        html+='<input class="finput" id="trRespNote" placeholder="Note (valgfrit)" style="margin-bottom:10px;" value="'+(myTrainerResp&&myTrainerResp.note?esc(myTrainerResp.note):'')+'">';
+        html+='<div style="display:flex;gap:8px;">';
+        html+='<button class="btn btn-dark btn-sm" style="flex:1;background:#1e8449;border-color:#1e8449;" onclick="trainerSubmitResponse(\''+ev.id+'\',\'yes\')">&#10003; Tilmeld</button>';
+        html+='<button class="btn btn-red btn-sm" style="flex:1;" onclick="trainerSubmitResponse(\''+ev.id+'\',\'no\')">&#10007; Afbud</button>';
+        html+='</div>';
+        html+='<button style="width:100%;margin-top:8px;background:none;border:none;color:#aaa;font-size:12px;cursor:pointer;" onclick="STATE.trainerRespondingTo=null;render()">Annuller</button>';
+        html+='</div>';
+      } else {
+        html+='<div style="margin-top:8px;">';
+        html+='<button class="btn btn-dark btn-sm" onclick="STATE.trainerRespondingTo=\''+ev.id+'\';render()">'+(myTrainerResp&&myTrainerResp.response?'&#9998; \u00c6ndr svar':'Tilmeld / Afbud')+'</button>';
+        html+='</div>';
+      }
+    }
+    html+='</div>';
+  }
+
   html+='</div>';
   return html;
 }
@@ -3401,6 +3445,17 @@ window.submitResponse=function(evId,response){
   });
 };
 
+window.trainerSubmitResponse=function(evId,response){
+  var note=((document.getElementById('trRespNote')||{}).value||'').trim();
+  var playerId=STATE.profile.id;
+  sbDelete('event_responses','event_id=eq.'+evId+'&player_id=eq.'+playerId).then(function(){
+    return sbPost('event_responses',{event_id:evId,player_id:playerId,response:response,note:note||null});
+  }).then(function(){
+    STATE.trainerRespondingTo=null;
+    return loadAll();
+  }).then(render);
+};
+
 function loadPlayerData(){
   var pid=STATE.profile.id;
   var cid=STATE.profile.club_id;
@@ -3436,10 +3491,17 @@ function loadPlayerData(){
     var allMemberTeamIds=members.filter(function(m){return !m.is_trainer;}).map(function(m){return m.team_id;});
     var regularMemberships=members.filter(function(m){return !m.is_reserve&&!m.is_trainer;});
     var regularTeamIds=regularMemberships.map(function(m){return m.team_id;});
-    return sbGet('teams','id=in.('+(allMemberTeamIds.length?allMemberTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
+    // Also include teams where user is registered as trainer (for trainer-as-player)
+    var trainerTeamIds=members.filter(function(m){return m.is_trainer;}).map(function(m){return m.team_id;});
+    var allEvTeamIdsSet=allMemberTeamIds.slice();
+    for(var tii=0;tii<trainerTeamIds.length;tii++){
+      if(allEvTeamIdsSet.indexOf(trainerTeamIds[tii])<0) allEvTeamIdsSet.push(trainerTeamIds[tii]);
+    }
+    var playerTeamIds=allMemberTeamIds.length?allMemberTeamIds:['00000000-0000-0000-0000-000000000000'];
+    return sbGet('teams','id=in.('+playerTeamIds.join(',')+')').then(function(teams){
       STATE.playerTeams=Array.isArray(teams)?teams:[];
-      // Load events for ALL teams (fast + reserve) not just regular
-      var allEvTeamIds=allMemberTeamIds.length?allMemberTeamIds:regularTeamIds;
+      // Load events for ALL teams (player + trainer roles) so trainer-as-player sees their events
+      var allEvTeamIds=allEvTeamIdsSet.length?allEvTeamIdsSet:regularTeamIds;
       var evPromise=allEvTeamIds.length
         ?sbGet('events','team_id=in.('+allEvTeamIds.join(',')+')&order=date')
         :Promise.resolve([]);
