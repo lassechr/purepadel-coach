@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="/icon-512.png">
 <title>PurePadel</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -876,8 +877,25 @@ function vitem(v,idx,ed){
 // ── PLAYERS ──────────────────────────────────────────────────
 function rPlayers() {
   var role=STATE.profile?STATE.profile.role:'';
+  // Excel-knap: superadmin får dropdown med foreninger, andre får simpel knap
+  var excelBtn='';
+  if(role==='superadmin'){
+    var clubs=(STATE.allProfiles||[]).filter(function(p){return p.role==='club_admin';});
+    excelBtn='<div style="position:relative;display:inline-block;">'
+      +'<button class="btn btn-light" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'block\'?\'none\':\'block\'" title="Download Excel-udtræk">&#11015; Excel &#9660;</button>'
+      +'<div style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1.5px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.10);z-index:100;min-width:180px;padding:6px 0;">'
+      +'<div onclick="exportPlayersExcel(null);this.parentNode.style.display=\'none\'" style="padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid #f0f0f0;">Alle foreninger</div>';
+    clubs.forEach(function(c){
+      var cname=c.club_name||c.name||c.id;
+      excelBtn+='<div onclick="exportPlayersExcel(\''+c.id+'\');this.parentNode.style.display=\'none\'" style="padding:9px 16px;font-size:13px;cursor:pointer;">'+esc(cname)+'</div>';
+    });
+    excelBtn+='</div></div>';
+  } else {
+    excelBtn='<button class="btn btn-light" onclick="exportPlayersExcel()" title="Download Excel-udtræk">&#11015; Excel</button>';
+  }
   var html='<div class="sec-head"><div class="sec-title">Spillere ('+STATE.players.length+')</div>'
     +'<div style="display:flex;gap:8px;">'
+    +excelBtn
     +'<button class="btn btn-light" onclick="toggleImp()">Excel-import</button>'
     +'<button class="btn btn-dark" onclick="openModal(\'add_player\')">+ Tilføj</button>'
     +'</div></div>';
@@ -2142,12 +2160,17 @@ function rEventModal(){
   html+='</select></div>';
 
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Startdato og -tid</label><input class="finput" id="evDate" type="datetime-local" value="'+(ed.date?localDT(ed.date):localDTNextHour(1))+'" onchange="autoFillEndDate()"></div>';
-  html+='<div><label class="flabel">Sluttidspunkt</label><input class="finput" id="evEndTime" type="datetime-local" value="'+(ed.end_time?localDT(ed.end_time):localDTNextHour(3))+'"></div>';
+  html+='<div><label class="flabel">Startdato</label><input class="finput" id="evDateOnly" type="date" value="'+(ed.date?localDT(ed.date).split('T')[0]:localDTNextHour(1).split('T')[0])+'" onchange="autoFillEndDate()"></div>';
+  html+='<div><label class="flabel">Starttidspunkt</label><input class="finput" id="evTimeOnly" type="time" value="'+(ed.date?localDT(ed.date).split('T')[1]:localDTNextHour(1).split('T')[1])+'"></div>';
+  html+='</div>';
+  html+='<input type="hidden" id="evDate">';
+  html+='<div class="frow">';
+  html+='<div><label class="flabel">Sluttidspunkt</label><input class="finput" id="evEndTime" type="time" value="'+(ed.end_time?localDT(ed.end_time).split('T')[1]:localDTNextHour(3).split('T')[1])+'"></div>';
+  html+='<div></div>';
   html+='</div>';
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Tilmeldingsfrist</label><input class="finput" id="evDeadline" type="datetime-local" value="'+(ed.signup_deadline?localDT(ed.signup_deadline):'')+'"></div>';
-  html+='<div></div>';
+  html+='<div><label class="flabel">Tilmeldingsfrist dato</label><input class="finput" id="evDeadlineDate" type="date" value="'+(ed.signup_deadline?localDT(ed.signup_deadline).split('T')[0]:'')+'"></div>';
+  html+='<div><label class="flabel">Tidspunkt</label><input class="finput" id="evDeadlineTime" type="time" value="'+(ed.signup_deadline?localDT(ed.signup_deadline).split('T')[1]:'23:59')+'"></div>';
   html+='</div>';
   // Recurrence
   if(!ed.id){
@@ -2456,18 +2479,16 @@ window.toggleAllPlayers=function(){
 };
 
 window.autoFillEndDate=function(){
-  var startEl=document.getElementById('evDate');
+  var dateEl=document.getElementById('evDateOnly');
+  var timeEl=document.getElementById('evTimeOnly');
   var endEl=document.getElementById('evEndTime');
-  if(!startEl||!endEl)return;
-  var start=new Date(startEl.value);
+  if(!dateEl||!timeEl||!endEl)return;
+  var start=new Date(dateEl.value+'T'+(timeEl.value||'00:00'));
   if(isNaN(start))return;
-  // Round start to nearest whole hour if minutes != 0
-  start.setMinutes(0,0,0);
-  // Set end to start + 2 hours
   var end=new Date(start);
   end.setHours(end.getHours()+2);
   var pad=function(n){return n<10?'0'+n:String(n);};
-  endEl.value=end.getFullYear()+'-'+pad(end.getMonth()+1)+'-'+pad(end.getDate())+'T'+pad(end.getHours())+':00';
+  endEl.value=pad(end.getHours())+':'+pad(end.getMinutes());
 };
 
 window.setEvType=function(type){
@@ -2526,23 +2547,27 @@ window.saveEvent=function(){
   var title=(document.getElementById('evT')||{}).value||'';
   if(!title.trim()){alert('Angiv en titel');return;}
   var teamId=(document.getElementById('evTeam')||{}).value;
-  var dateVal=(document.getElementById('evDate')||{}).value;
-  if(!dateVal){alert('V\u00e6lg dato og tid');return;}
+  var dateOnly=(document.getElementById('evDateOnly')||{}).value;
+  var timeOnly=(document.getElementById('evTimeOnly')||{}).value||'00:00';
+  if(!dateOnly){alert('Vælg dato');return;}
+  var dateVal=dateOnly+'T'+timeOnly;
   var type=(document.getElementById('evType')||{}).value||'training';
-  var deadline=(document.getElementById('evDeadline')||{}).value;
   var endTimeVal=((document.getElementById('evEndTime')||{}).value||'').trim();
+  var deadlineDate=((document.getElementById('evDeadlineDate')||{}).value||'').trim();
+  var deadlineTime=((document.getElementById('evDeadlineTime')||{}).value||'23:59').trim();
   var startDate=new Date(dateVal);
-  var endTime=endTimeVal?new Date(endTimeVal).toISOString():null;
+  var endTime=endTimeVal?(new Date(dateOnly+'T'+endTimeVal)).toISOString():null;
+  var deadline=deadlineDate?(new Date(deadlineDate+'T'+deadlineTime)).toISOString():null;
   var recurType=((document.getElementById('evRecur')||{}).value||'');
   var recurEnd=((document.getElementById('evRecurEnd')||{}).value||'');
-  var data={
+
     team_id:teamId,
     trainer_id:STATE.profile.id,
     title:title.trim(),
     type:type,
     date:startDate.toISOString(),
     end_time:endTime,
-    signup_deadline:deadline?new Date(deadline).toISOString():null,
+    signup_deadline:deadline||null,
     location:((document.getElementById('evLoc')||{}).value||'').trim()||null,
     notes:((document.getElementById('evNotes')||{}).value||'').trim()||null,
     opponent:type==='match'?((document.getElementById('evOpp')||{}).value||'').trim()||null:null,
@@ -3521,6 +3546,113 @@ window.openAdd=function(){STATE.editDrill=null;STATE.mvids=[];STATE.modal='drill
 window.toggleVid=function(id){STATE.ov=STATE.ov===id?null:id;render();};
 window.togAtt=function(id){var i=STATE.att.indexOf(id);if(i>-1)STATE.att.splice(i,1);else STATE.att.push(id);render();};
 window.toggleImp=function(){STATE.showImp=!STATE.showImp;STATE.irows=[];render();};
+
+window.exportPlayersExcel=function(clubIdFilter){
+  if(typeof XLSX==='undefined'){alert('Excel-bibliotek ikke indlæst endnu, prøv igen om et sekund.');return;}
+  var role=STATE.profile?STATE.profile.role:'';
+  var profiles=STATE.allProfiles||[];
+  var allPlayers=STATE.players||[];
+  var teams=STATE.teams||[];
+  var cache=STATE.teamMembersCache||{};
+
+  // Foreningsfilter: superadmin kan angive clubIdFilter, club_admin bruger altid eget club_id
+  var filterClubId=null;
+  if(role==='superadmin'){
+    filterClubId=clubIdFilter||null;
+  } else {
+    filterClubId=clubId();
+  }
+
+  var players=filterClubId
+    ?allPlayers.filter(function(pl){return pl.club_id===filterClubId;})
+    :allPlayers;
+
+  // Byg opslag: player.id → profil
+  var profByPlayerId={};
+  players.forEach(function(pl){
+    if(pl.profile_id){
+      var pr=profiles.filter(function(p){return p.id===pl.profile_id;})[0];
+      if(pr)profByPlayerId[pl.id]=pr;
+    }
+  });
+
+  // Byg opslag: player.id → hold-info
+  var membersByPlayerId={};
+  Object.keys(cache).forEach(function(teamId){
+    var team=teams.filter(function(t){return t.id===teamId;})[0];
+    if(!team)return;
+    cache[teamId].forEach(function(tm){
+      if(!membersByPlayerId[tm.player_id])membersByPlayerId[tm.player_id]=[];
+      membersByPlayerId[tm.player_id].push({team:team,tm:tm});
+    });
+  });
+
+  var sideMap={'højre':'Højre','venstre':'Venstre','begge':'Begge','':''};
+
+  var rows=players.map(function(pl){
+    var pr=profByPlayerId[pl.id]||{};
+    var memberships=membersByPlayerId[pl.id]||[];
+    var holdNavne=memberships.map(function(m){return m.team.name;}).join(', ');
+    var holdTyper=memberships.map(function(m){return m.team.team_type==='dpf'?'DPF':'Træning';}).join(', ');
+    var erKaptajn=memberships.some(function(m){return m.tm.is_captain;})?'Ja':'';
+    var erReserve=memberships.some(function(m){return m.tm.is_reserve;})?'Ja':'';
+    var erTraener=memberships.some(function(m){return m.tm.is_trainer;})?'Ja':'';
+    var kaptajnHold=memberships.filter(function(m){return m.tm.is_captain;}).map(function(m){return m.team.name;}).join(', ');
+    var harLogin=pr.email?'Ja':'Nej';
+    var subExpires=pr.subscription_expires?pr.subscription_expires.split('T')[0]:'';
+    var subStatus='';
+    if(pr.subscription_expires){
+      var days=Math.floor((new Date(pr.subscription_expires)-new Date())/86400000);
+      subStatus=days<0?'Udløbet':days<30?'Udløber snart':'Aktiv';
+    }
+    // Find foreningsnavn
+    var clubProfile=profiles.filter(function(p){return p.id===pl.club_id;})[0];
+    var foreningNavn=clubProfile?(clubProfile.club_name||clubProfile.name||pl.club_id):(pl.club_id||'');
+    return {
+      'Forening': foreningNavn,
+      'Navn': pl.name||pr.name||'',
+      'Email': pr.email||'',
+      'Niveau': pl.level||'',
+      'Side': sideMap[pl.side]||pl.side||'',
+      'Noter': pl.notes||'',
+      'Hold': holdNavne,
+      'Holdtype': holdTyper,
+      'Kaptajn': erKaptajn,
+      'Kaptajn for hold': kaptajnHold,
+      'Reserve': erReserve,
+      'Træner': erTraener,
+      'Har login': harLogin,
+      'Rolle': pr.role||'',
+      'Status': pr.status||'',
+      'Push aktiv': pr.notify_push!==false?'Ja':'Nej',
+      'Email notif.': pr.notify_email!==false?'Ja':'Nej',
+      'Abonnement udløber': subExpires,
+      'Abonnement status': subStatus,
+      'Oprettet': pl.created_at?(pl.created_at.split('T')[0]):'',
+      'Sidst set': pr.last_seen?(pr.last_seen.split('T')[0]):''
+    };
+  });
+
+  // Sorter efter forening, derefter navn
+  rows.sort(function(a,b){
+    var fc=(a['Forening']||'').localeCompare(b['Forening']||'','da');
+    if(fc!==0)return fc;
+    return (a['Navn']||'').localeCompare(b['Navn']||'','da');
+  });
+
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[
+    {wch:20},{wch:22},{wch:28},{wch:8},{wch:10},{wch:20},
+    {wch:30},{wch:16},{wch:10},{wch:24},{wch:10},
+    {wch:10},{wch:10},{wch:12},{wch:10},{wch:12},
+    {wch:14},{wch:20},{wch:18},{wch:14},{wch:14}
+  ];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Spillere');
+  var dato=new Date().toISOString().split('T')[0];
+  var clubSuffix=filterClubId?(rows[0]&&rows[0]['Forening']?'-'+rows[0]['Forening'].replace(/\s+/g,'-'):''):'-alle';
+  XLSX.writeFile(wb,'purepadel-spillere'+clubSuffix+'-'+dato+'.xlsx');
+};
 window.setMode=function(m){STATE.matchMode=m;STATE.matches=[];render();};
 window.clrMatches=function(){STATE.matches=[];render();};
 window.rmVid=function(i){STATE.mvids.splice(i,1);render();};
@@ -4023,9 +4155,9 @@ function sendPushToPlayer(profileId,title,body,eventId,callback){
   xhr.setRequestHeader('apikey',SB_KEY);
   xhr.onload=function(){
     if(xhr.status===200){if(callback)callback(true,null);}
-    else{if(callback)callback(false,xhr.status+': '+xhr.responseText);else alert('Push fejlede: '+xhr.responseText);}
+    else{if(callback)callback(false,xhr.status+': '+xhr.responseText);}
   };
-  xhr.onerror=function(){if(callback)callback(false,'Netvaerksfejl');else alert('Netvaerksfejl');}
+  xhr.onerror=function(){if(callback)callback(false,'Netvaerksfejl');}
   xhr.send(JSON.stringify({player_id:profileId,title:title,body:body,eventId:eventId||null,url:'https://coach.purepadel.dk'+(eventId?'?event='+eventId:'')}));
 }
 
@@ -4040,8 +4172,12 @@ function sendEmailToPlayer(profileId,subject,text,html){
 }
 
 function notifyPlayer(profileId,title,body,emailSubject,emailHtml,eventId){
-  sendPushToPlayer(profileId,title,body,eventId);
-  sendEmailToPlayer(profileId,emailSubject||title,body,emailHtml||null);
+  var pr=(STATE.allProfiles||[]).filter(function(p){return p.id===profileId;})[0]||{};
+  var hasPush=pr.notify_push!==false;
+  var hasEmail=pr.notify_email!==false&&!!pr.email;
+  if(hasPush)sendPushToPlayer(profileId,title,body,eventId);
+  if(hasEmail)sendEmailToPlayer(profileId,emailSubject||title,body,emailHtml||null);
+  if(!hasPush&&!hasEmail)console.warn('Ingen notifikationskanal for '+(pr.name||profileId));
 }
 
 window.rejectPlayer=function(id){
