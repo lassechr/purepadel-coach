@@ -2220,7 +2220,7 @@ window.addPlayerToTeam=function(sel,playerId){
     for(var pi2=0;pi2<STATE.players.length;pi2++){if(STATE.players[pi2].id===playerId){playerName2=STATE.players[pi2].name||'';break;}}
     sbPost('profiles',{name:playerName2,role:'player',status:'active',club_id:clubId(),notify_push:false,notify_email:false}).then(function(newProf){
       var np=Array.isArray(newProf)?newProf[0]:newProf;
-      if(!np||!np.id){alert('Kunne ikke oprette profil');return;}
+      if(!np||!np.id){alert('Kunne ikke oprette profil: '+JSON.stringify(newProf).substring(0,200));return;}
       sbPatch('players',{profile_id:np.id},'id=eq.'+playerId).then(function(){
         sbPost('team_members',{team_id:teamId,player_id:np.id,is_reserve:isReserve}).then(function(res2){
           if(res2&&res2.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
