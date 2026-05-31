@@ -854,65 +854,6 @@ function rPlayers() {
     +'<button class="btn btn-dark" onclick="openModal(\'add_player\')">+ Tilføj</button>'
     +'</div></div>';
 
-  // Traener oversigt for club_admin
-  if(role==='club_admin'||role==='superadmin'){
-    var myClubId2=STATE.profile.role==='club_admin'?STATE.profile.id:null;
-    var trainerProfiles=STATE.allProfiles.filter(function(p){
-      return p.role==='trainer'&&(!myClubId2||p.club_id===myClubId2);
-    });
-    // Find også spiller-trænere
-    var playerTrainers=[];
-    if(STATE.teamMembersCache){
-      for(var trtk in STATE.teamMembersCache){
-        var trtms2=STATE.teamMembersCache[trtk];
-        for(var trti3=0;trti3<trtms2.length;trti3++){
-          if(trtms2[trti3].is_trainer){
-            var trProf=STATE.allProfiles.filter(function(p){return p.id===trtms2[trti3].player_id;})[0];
-            if(trProf&&trProf.role==='trainer'){
-              var alreadyIn=trainerProfiles.some(function(p){return p.id===trProf.id;});
-              if(!alreadyIn)trainerProfiles.push(trProf);
-            }
-          }
-        }
-      }
-    }
-    if(trainerProfiles.length){
-      html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:16px;">';
-      html+='<div style="font-size:12px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">TRÆNERE</div>';
-      for(var tri=0;tri<trainerProfiles.length;tri++){
-        var trp=trainerProfiles[tri];
-        // Find hvilke hold de er træner på
-        var trHold=[];
-        if(STATE.teamMembersCache){
-          for(var trhtk in STATE.teamMembersCache){
-            var trhtms=STATE.teamMembersCache[trhtk];
-            for(var trhti=0;trhti<trhtms.length;trhti++){
-              if(trhtms[trhti].player_id===trp.id&&trhtms[trhti].is_trainer){
-                var trhTeam=STATE.teams.filter(function(t){return t.id===trhtk;})[0];
-                if(trhTeam)trHold.push(trhTeam.name);
-              }
-            }
-          }
-        }
-        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #eee;flex-wrap:wrap;">';
-        html+='<div style="flex:1;min-width:140px;">';
-        html+='<div style="font-size:13px;font-weight:600;color:#111;">'+esc(trp.name||trp.email)+'</div>';
-        html+='<div style="font-size:11px;color:#888;">'+esc(trp.email||'')+'</div>';
-        html+='</div>';
-        html+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
-        if(trHold.length){
-          for(var trhi=0;trhi<trHold.length;trhi++){
-            html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;font-weight:600;">'+esc(trHold[trhi])+'</span>';
-          }
-        } else {
-          html+='<span style="font-size:11px;color:#aaa;">Ingen hold tildelt</span>';
-        }
-        html+='</div></div>';
-      }
-      html+='</div>';
-    }
-  }
-
   // Pending players for club_admin
   if(role==='club_admin'||role==='superadmin'){
     var myClubId=STATE.profile.id;
@@ -1061,25 +1002,6 @@ function rPlayers() {
           if(tn.isCaptain)html+=' <span style="font-size:10px;">&#9733;</span>';
           if(tn.isReserve)html+=' <span style="font-size:10px;font-weight:700;"> R</span>';
           html+='<span onclick="removePlayerFromTeam(\''+tn.memberId+'\',\''+tn.teamId+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
-          html+='</span>';
-        }
-      }
-      // Vis traenerhold badges - saml alle hold
-      if(playerProfileId&&STATE.teamMembersCache){
-        var trainerBadges=[];
-        for(var ttk2 in STATE.teamMembersCache){
-          var ttms2=STATE.teamMembersCache[ttk2];
-          for(var tti2=0;tti2<ttms2.length;tti2++){
-            if(ttms2[tti2].player_id===playerProfileId&&ttms2[tti2].is_trainer){
-              var ttrTeam=STATE.teams.filter(function(t){return t.id===ttk2;})[0];
-              if(ttrTeam)trainerBadges.push({name:ttrTeam.name,memberId:ttms2[tti2].id,teamId:ttk2});
-            }
-          }
-        }
-        for(var tbi=0;tbi<trainerBadges.length;tbi++){
-          var tb=trainerBadges[tbi];
-          html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;font-weight:600;">Træner: '+esc(tb.name);
-          if(canManage)html+='<span onclick="removeTrainerFromTeam(\''+tb.memberId+'\',\''+tb.teamId+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
           html+='</span>';
         }
       }
@@ -1426,6 +1348,12 @@ function rEditPlayerModal(){
   html+='<div class="fg"><label class="flabel">Navn</label><input class="finput" id="epN" value="'+esc(p.name||'')+'"></div>';
   var epProf=null;for(var epi=0;epi<STATE.allProfiles.length;epi++){if(STATE.allProfiles[epi].id===p.profile_id){epProf=STATE.allProfiles[epi];break;}}
   html+='<div class="fg"><label class="flabel">Email</label><input class="finput" id="epEmail" type="email" value="'+esc(epProf&&epProf.email||'')+'" placeholder="email@eksempel.dk"></div>';
+  if(epProf){
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:10px 12px;margin-bottom:12px;">';
+    html+='<div style="font-size:12px;color:#666;">Nulstil adgangskode</div>';
+    html+='<button class="btn btn-light btn-sm" onclick="resetPlayerPassword(\''+epProf.id+'\',\''+esc(p.name||epProf.name||'spilleren')+'\')">' + 'Nyt password</button>';
+    html+='</div>';
+  }
   html+='<div class="fg"><label class="flabel">Niveau</label>';
   html+='<div style="display:flex;gap:6px;margin-top:6px;">';
   for(var s=1;s<=5;s++){
@@ -2771,6 +2699,23 @@ function rAddLoginModal(){
     +'</div></div>';
 }
 
+window.resetPlayerPassword=function(profileId,playerName){
+  var pw=prompt('Nyt password til '+playerName+' (min. 6 tegn):');
+  if(!pw)return;
+  if(pw.length<6){alert('Password skal vaere mindst 6 tegn');return;}
+  var tok=STATE.session?STATE.session.access_token:null;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',SB_URL+'/functions/v1/reset-password',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Authorization','Bearer '+tok);
+  xhr.setRequestHeader('apikey',SB_KEY);
+  xhr.onload=function(){
+    if(xhr.status===200)alert('Password opdateret! Spilleren kan nu logge ind.');
+    else alert('Fejl: '+xhr.responseText);
+  };
+  xhr.send(JSON.stringify({userId:profileId,newPassword:pw}));
+};
+
 window.openAddLoginModal=function(playerId,playerName){
   STATE.addLoginData={playerId:playerId,name:playerName};
   STATE.modal='add_login';
@@ -3580,35 +3525,6 @@ window.savePlayer=function(){
     sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt((document.getElementById('pL')||{}).value)||3)),side:(document.getElementById('pS')||{}).value||'begge',notes:((document.getElementById('pO')||{}).value||'').trim()})
     .then(function(){closeModal();loadPlayers().then(render);});
   }
-};
-
-window.removeTrainerFromTeam=function(memberId,teamId){
-  if(!confirm('Fjern trænerrolle fra dette hold?'))return;
-  // Sæt is_trainer=false - beholder spillermedlemskabet
-  sbPatch('team_members',{is_trainer:false},'id=eq.'+memberId).then(function(){
-    // Tjek om personen stadig er træner på andre hold
-    return loadTeamMembersCache();
-  }).then(function(){
-    // Find om personen er træner på andre hold
-    var profileId=null;
-    var tms=STATE.teamMembersCache[teamId]||[];
-    // Find profil-id via alle holds memberships
-    var stillTrainer=false;
-    for(var tk in STATE.teamMembersCache){
-      var tmlist=STATE.teamMembersCache[tk];
-      for(var tmi=0;tmi<tmlist.length;tmi++){
-        if(tmlist[tmi].id===memberId){profileId=tmlist[tmi].player_id;}
-        if(profileId&&tmlist[tmi].player_id===profileId&&tmlist[tmi].is_trainer){stillTrainer=true;}
-      }
-    }
-    // Hvis ikke længere træner på nogen hold - skift rolle tilbage til player
-    if(profileId&&!stillTrainer){
-      return sbPatch('profiles',{role:'player'},'id=eq.'+profileId);
-    }
-    return Promise.resolve();
-  }).then(function(){
-    loadAllProfiles().then(render);
-  });
 };
 
 window.assignTrainerToTeam=function(profileId){
