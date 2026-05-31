@@ -545,10 +545,10 @@ function render() {
 
   var tabs = [];
   if(p.role === 'superadmin') {
-    tabs = [{id:'admin',label:'Admin'},{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'},{id:'hold',label:'Hold'}];
+    tabs = [{id:'admin',label:'Admin'},{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Træninger'},{id:'hold',label:'Hold'}];
     if(STATE.tab === 'admin' && p.role !== 'superadmin') STATE.tab = 'drills';
   } else {
-    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Kamp'},{id:'hold',label:'Hold'},{id:'historik',label:'Historik'},{id:'konto',label:'Konto'}];
+    tabs = [{id:'drills',label:'Øvelser'},{id:'players',label:'Spillere'},{id:'matches',label:'Træninger'},{id:'hold',label:'Hold'},{id:'historik',label:'Historik'},{id:'konto',label:'Konto'}];
     if(p.is_player) tabs.splice(4,0,{id:'mine_traening',label:'Mine træninger'});
     if(STATE.tab === 'admin') STATE.tab = 'drills';
   }
