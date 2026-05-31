@@ -3483,20 +3483,19 @@ function loadPlayerData(){
     if(!Array.isArray(members)||!members.length){
       STATE.playerTeams=[];STATE.playerTeamMemberships=[];
       STATE.playerEvents=[];STATE.playerResponses=[];
-      // Hent stadig reserve-invitationer selv uden holdmedlemskab
-      return sbGet('event_responses','player_id=eq.'+pid+'&response=is.null').then(function(invitations){
-        if(!Array.isArray(invitations)||!invitations.length)return Promise.resolve();
-        var invitedEvIds=invitations.map(function(r){return r.event_id;});
+      // Hent alle event_responses for brugeren (også besvaret)
+      return sbGet('event_responses','player_id=eq.'+pid).then(function(allResps){
+        if(!Array.isArray(allResps)||!allResps.length)return Promise.resolve();
+        STATE.playerResponses=allResps;
+        var invitedEvIds=allResps.map(function(r){return r.event_id;});
         return sbGet('events','id=in.('+invitedEvIds.join(',')+')&order=date').then(function(invEvs){
           if(Array.isArray(invEvs)){
-            invEvs.forEach(function(e){e._isReserveInvite=true;});
+            invEvs.forEach(function(e){
+              var r=allResps.filter(function(x){return x.event_id===e.id;})[0];
+              if(r&&r.response===null&&r.note==='Inviteret som reserve')e._isReserveInvite=true;
+            });
             STATE.playerEvents=invEvs;
           }
-          var evIds=STATE.playerEvents.map(function(e){return e.id;});
-          if(!evIds.length)return Promise.resolve();
-          return sbGet('event_responses','event_id=in.('+evIds.join(',')+')'+'&player_id=eq.'+pid).then(function(resp){
-            STATE.playerResponses=Array.isArray(resp)?resp:[];
-          });
         });
       });
     }
@@ -3523,30 +3522,28 @@ function loadPlayerData(){
       return evPromise;
     }).then(function(events){
       STATE.playerEvents=Array.isArray(events)?events:[];
-      // Also load events player was specifically invited to (reserve invite)
-      return sbGet('event_responses','player_id=eq.'+pid+'&response=is.null');
-    }).then(function(invitations){
-      if(Array.isArray(invitations)&&invitations.length){
-        var invitedEvIds=invitations.map(function(r){return r.event_id;});
-        return sbGet('events','id=in.('+invitedEvIds.join(',')+')&order=date').then(function(invEvs){
-          if(Array.isArray(invEvs)){
-            // Merge invited events (avoid duplicates)
-            var existingIds=STATE.playerEvents.map(function(e){return e.id;});
-            for(var ii=0;ii<invEvs.length;ii++){
-              if(existingIds.indexOf(invEvs[ii].id)<0){
-                invEvs[ii]._isReserveInvite=true;
+      // Hent ALLE event_responses for brugeren (inkl. besvaret) for at finde ekstra invitationer
+      return sbGet('event_responses','player_id=eq.'+pid);
+    }).then(function(allResps){
+      if(Array.isArray(allResps)&&allResps.length){
+        var existingIds=STATE.playerEvents.map(function(e){return e.id;});
+        var extraEvIds=allResps.map(function(r){return r.event_id;}).filter(function(id){return existingIds.indexOf(id)<0;});
+        if(extraEvIds.length){
+          return sbGet('events','id=in.('+extraEvIds.join(',')+')&order=date').then(function(invEvs){
+            if(Array.isArray(invEvs)){
+              for(var ii=0;ii<invEvs.length;ii++){
+                var r=allResps.filter(function(x){return x.event_id===invEvs[ii].id;})[0];
+                if(r&&r.response===null&&r.note==='Inviteret som reserve')invEvs[ii]._isReserveInvite=true;
                 STATE.playerEvents.push(invEvs[ii]);
               }
             }
-          }
-        });
+            return allResps;
+          });
+        }
       }
-    }).then(function(){
-      if(!STATE.playerEvents.length){STATE.playerResponses=[];return Promise.resolve();}
-      var evIds=STATE.playerEvents.map(function(e){return e.id;});
-      return sbGet('event_responses','event_id=in.('+evIds.join(',')+')'+'&player_id=eq.'+pid);
-    }).then(function(resp){
-      STATE.playerResponses=Array.isArray(resp)?resp:[];
+      return allResps;
+    }).then(function(allResps){
+      STATE.playerResponses=Array.isArray(allResps)?allResps:[];
     });
   }).catch(function(){STATE.playerTeams=[];STATE.playerEvents=[];STATE.playerResponses=[];});
 }
