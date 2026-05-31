@@ -2408,7 +2408,8 @@ function rEventModal(){
           var um=regulars[upi];
           var uname=getPlayerName(um.player_id);
           html+='<label style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">';
-          html+='<input type="checkbox" class="evPlayerCb" value="'+um.player_id+'" checked style="width:16px;height:16px;">';
+          var preCheck=evTypeVal!=='match';
+          html+='<input type="checkbox" class="evPlayerCb" value="'+um.player_id+'"'+(preCheck?' checked':'')+' style="width:16px;height:16px;">';
           html+='<span style="font-size:13px;">'+esc(uname)+'</span>';
           html+='</label>';
         }
@@ -2812,6 +2813,10 @@ window.saveEvent=function(){
       loadEvents().then(function(){return loadEventResponses();}).then(render);
     });
   } else if(recurType&&recurEnd){
+    // Read selected players before modal closes
+    var recurCbs=document.querySelectorAll('.evPlayerCb');
+    var recurSelectedIds=[];
+    for(var rci2=0;rci2<recurCbs.length;rci2++){if(recurCbs[rci2].checked)recurSelectedIds.push(recurCbs[rci2].value);}
     var recId=(typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).substr(2));
     var promises=[];
     var cur=new Date(startDate);
@@ -2837,8 +2842,27 @@ window.saveEvent=function(){
       promises.push(sbPost('events',evData));
       cur.setDate(cur.getDate()+interval);
     }
-    Promise.all(promises).then(function(){
+    Promise.all(promises).then(function(results){
       closeModal();
+      if(recurSelectedIds.length){
+        var evDate=new Date(data.date);
+        var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+        var invTitle=data.type==='match'?'Udtaget til kamp: '+data.title:'Invitation: '+data.title;
+        var invBody=data.type==='match'?'Du er udtaget til kampen d. '+dateStr+'. Bekræft din deltagelse i appen.':'Du er inviteret til træning d. '+dateStr+'. Tilmeld dig i appen.';
+        var invHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>'+invTitle+'</h2><p>'+invBody+'</p><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Åbn appen</a></div>';
+        results.forEach(function(res){
+          var evId=Array.isArray(res)&&res[0]?res[0].id:null;
+          if(!evId)return;
+          recurSelectedIds.forEach(function(pid){
+            sbPost('event_responses',{event_id:evId,player_id:pid,response:null});
+          });
+          // Only notify on first event to avoid spam
+        });
+        // Send notification once per player for the series
+        recurSelectedIds.forEach(function(pid){
+          notifyPlayer(pid,invTitle,invBody,invTitle,invHtml,null);
+        });
+      }
       loadEvents().then(function(){return loadEventResponses();}).then(render);
       alert('Oprettet '+promises.length+' begivenheder i serien');
     });
