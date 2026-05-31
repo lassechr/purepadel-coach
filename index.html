@@ -484,8 +484,8 @@ function loadAll() {
     }
     return Promise.resolve();
   }).then(function(){
-    // Also load player data if trainer has is_player flag
-    if(STATE.profile&&STATE.profile.is_player){
+    // Also load player data if trainer has is_player flag or is in team_members
+    if(STATE.profile&&(STATE.profile.is_player||STATE.profile.role==='trainer')){
       return loadPlayerData();
     }
     return Promise.resolve();
