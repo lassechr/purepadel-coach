@@ -124,9 +124,38 @@ body{background:#f0f0f0;font-family:'DM Sans',sans-serif;min-height:100vh;}
 
 /* IMPORT */
 .paste-area{width:100%;min-height:80px;background:#fff;border:1.5px dashed #ccc;border-radius:8px;padding:10px;color:#111;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;resize:vertical;}
+
+/* In-app toast notifikation */
+#pp-toast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: #111;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 320px;
+  width: calc(100% - 32px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  text-align: center;
+}
+#pp-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
+<div id="pp-toast"></div>
 <div id="app"></div>
 
 <script>
@@ -3280,6 +3309,9 @@ if('serviceWorker' in navigator){
       STATE.tab='hold';
       render();
     }
+    if(event.data&&event.data.type==='PUSH_RECEIVED'){
+      showToast(event.data.title,event.data.body,event.data.eventId);
+    }
   });
 }
 
@@ -3865,6 +3897,19 @@ window.saveNotifyPref=function(type,val){
     if(type==='push'&&val){enablePush();}
   });
 };
+
+function showToast(title, body, eventId){
+  var el=document.getElementById('pp-toast');
+  if(!el)return;
+  el.textContent=title+(body?' – '+body:'');
+  el.className='show';
+  el.onclick=function(){
+    if(eventId){STATE.openEvent=eventId;STATE.tab='hold';render();}
+    el.className='';
+  };
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(function(){el.className='';},5000);
+}
 
 window.sendTestPush=function(){
   var sel=document.getElementById('pushTestTarget');

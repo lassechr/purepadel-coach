@@ -1,4 +1,4 @@
-var CACHE_NAME = 'purepadel-v10';
+var CACHE_NAME = 'purepadel-v11';
 
 self.addEventListener('install', function(event) {
   self.skipWaiting();
@@ -43,7 +43,25 @@ self.addEventListener('push', function(event) {
     data: { url: data.url || '/', eventId: data.eventId || null },
     vibrate: [200, 100, 200]
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      // Hvis appen er åben og i forgrunden - send besked i stedet for notifikation
+      for (var i = 0; i < clientList.length; i++) {
+        if (clientList[i].focused) {
+          clientList[i].postMessage({
+            type: 'PUSH_RECEIVED',
+            title: title,
+            body: data.body || '',
+            eventId: data.eventId || null
+          });
+          return; // Vis ikke system-notifikation
+        }
+      }
+      // Appen er i baggrunden - vis system-notifikation
+      return self.registration.showNotification(title, options);
+    })
+  );
 });
 
 self.addEventListener('notificationclick', function(event) {
@@ -54,7 +72,6 @@ self.addEventListener('notificationclick', function(event) {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      // If app is already open, focus it and send message
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
         if ('focus' in client) {
@@ -65,7 +82,6 @@ self.addEventListener('notificationclick', function(event) {
           return;
         }
       }
-      // Otherwise open new window
       var openUrl = eventId ? '/?event=' + eventId : targetUrl;
       return clients.openWindow(openUrl);
     })
