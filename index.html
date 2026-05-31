@@ -1035,6 +1035,22 @@ function rPlayers() {
           html+='</span>';
         }
       }
+      // Vis traenerhold badges med fjern-knap
+      if(playerProfileId&&STATE.teamMembersCache){
+        for(var ttk2 in STATE.teamMembersCache){
+          var ttms2=STATE.teamMembersCache[ttk2];
+          for(var tti2=0;tti2<ttms2.length;tti2++){
+            if(ttms2[tti2].player_id===playerProfileId&&ttms2[tti2].is_trainer){
+              var ttrTeam=STATE.teams.filter(function(t){return t.id===ttk2;})[0];
+              if(ttrTeam){
+                html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;font-weight:600;">Træner: '+esc(ttrTeam.name);
+                html+='<span onclick="removeTrainerFromTeam(\''+ttms2[tti2].id+'\',\''+ttk2+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
+                html+='</span>';
+              }
+            }
+          }
+        }
+      }
       // Add to team dropdown
       var availTeams=STATE.teams.filter(function(t){
         return !playerTeamIds.some(function(pt){return pt.teamId===t.id;});
@@ -2745,6 +2761,39 @@ window.resetPlayerPassword=function(profileId,playerName){
   xhr.send(JSON.stringify({userId:profileId,newPassword:pw}));
 };
 
+window.removeTrainerFromTeam=function(memberId,teamId){
+  if(!confirm('Fjern trænerrolle fra dette hold?'))return;
+  // Find profileId FØR vi patcher
+  var profileId=null;
+  for(var tk in STATE.teamMembersCache){
+    var tmlist=STATE.teamMembersCache[tk];
+    for(var tmi=0;tmi<tmlist.length;tmi++){
+      if(tmlist[tmi].id===memberId){profileId=tmlist[tmi].player_id;break;}
+    }
+    if(profileId)break;
+  }
+  sbPatch('team_members',{is_trainer:false},'id=eq.'+memberId).then(function(){
+    return loadTeamMembersCache();
+  }).then(function(){
+    // Tjek om personen stadig er træner på andre hold
+    var stillTrainer=false;
+    if(profileId){
+      for(var tk2 in STATE.teamMembersCache){
+        var tmlist2=STATE.teamMembersCache[tk2];
+        for(var tmi2=0;tmi2<tmlist2.length;tmi2++){
+          if(tmlist2[tmi2].player_id===profileId&&tmlist2[tmi2].is_trainer){stillTrainer=true;break;}
+        }
+      }
+      if(!stillTrainer){
+        return sbPatch('profiles',{role:'player'},'id=eq.'+profileId);
+      }
+    }
+    return Promise.resolve();
+  }).then(function(){
+    loadAllProfiles().then(render);
+  });
+};
+
 window.openAddLoginModal=function(playerId,playerName){
   STATE.addLoginData={playerId:playerId,name:playerName};
   STATE.modal='add_login';
@@ -2760,7 +2809,23 @@ window.saveAddLogin=function(){
   if(pw.length<6){alert('Password skal v\u00e6re mindst 6 tegn');return;}
   var cid=clubId();
   createAuthUser(email,pw,d.name,'player',cid,d.playerId,function(err,data){
-    if(err){alert('Fejl ved oprettelse: '+err);return;}
+    if(err){
+      // Hvis email allerede eksisterer - find profil og link den
+      if(err.indexOf&&(err.indexOf('already')>=0||err.indexOf('registered')>=0)){
+        sbGet('profiles','email=eq.'+encodeURIComponent(email)).then(function(prof){
+          if(Array.isArray(prof)&&prof.length){
+            sbPatch('players',{profile_id:prof[0].id},'id=eq.'+d.playerId).then(function(){
+              closeModal();loadAllProfiles().then(function(){return loadPlayers();}).then(render);
+              alert('Spilleren var allerede oprettet - konto er nu linket!');
+            });
+          } else {
+            alert('Email er allerede i brug af en anden bruger.');
+          }
+        });
+        return;
+      }
+      alert('Fejl ved oprettelse: '+err);return;
+    }
     var uid=data.id||data.user.id;
     if(sendMail){
       var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
