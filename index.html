@@ -1466,7 +1466,7 @@ function rHold(){
     html+='<div style="background:#f9f9f9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
     html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:700;color:#111;">'+esc(team.name)+'</div>';
-    html+='<div style="font-size:12px;color:#888;margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
+    html+='<div style="font-size:12px;color:'+(upcoming.length>0?'#111':'#888')+';font-weight:'+(upcoming.length>0?'600':'400')+';margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
     html+='</div>';
     html+='<div style="display:flex;gap:6px;align-items:center;">';
     html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Tr&#230;ning</button>';
@@ -1602,7 +1602,7 @@ function rHold(){
         html+='<div style="font-size:14px;font-weight:600;color:#111;">'+esc(sub.name)+'</div>';
         var divTxt=sub.division?'<span style="font-size:11px;background:#f0f0f0;color:#666;border-radius:4px;padding:1px 6px;margin-left:6px;">'+esc(sub.division)+'</span>':'';
         html+=divTxt;
-        html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
+        html+='<div style="font-size:11px;color:'+(subEvents.length>0?'#111':'#aaa')+';font-weight:'+(subEvents.length>0?'600':'400')+';margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
         html+='</div>';
         html+='<div style="display:flex;gap:6px;">';
         html+='<button class="btn btn-dark btn-sm" style="font-size:11px;" onclick="openNewEvent(\''+sub.id+'\',\'match\')">+ Kamp</button>';
@@ -1987,7 +1987,7 @@ function rEventModal(){
         if(!alreadyIn)teamMembers.push(parentMembers[pmi]);
       }
     }
-    html+='<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Debug: team='+selTeamId.substring(0,8)+'... members='+teamMembers.length+(parentTeamId?' (inkl. fra tr&#230;ningshold)':'')+'</div>';
+
     if(!teamMembers.length&&selTeamId){
       html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Ingen spillere på holdet endnu</div>';
     } else if(!selTeamId){
