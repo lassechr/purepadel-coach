@@ -2958,8 +2958,9 @@ window.sendReminder=function(eventId){
   var title='P\u00e5mindelse: '+ev.title;
   var body='Husk at tilmelde dig d. '+dateStr+'. Tilmeld dig nu i appen.';
   var teamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
-  var unanswered=teamMembers.filter(function(m){return answeredIds.indexOf(m.player_id)<0;});
-  if(!unanswered.length){alert('Alle har allerede svaret!');return;}
+  // Only remind players who were invited (have a response record) but haven't answered yet
+  var unanswered=responses.filter(function(r){return r.response===null;});
+  if(!unanswered.length){alert('Alle inviterede har allerede svaret!');return;}
   var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
     +'<h2 style="color:#111;">'+title+'</h2>'
     +'<p>'+body+'</p>'
@@ -2968,7 +2969,7 @@ window.sendReminder=function(eventId){
   for(var j=0;j<unanswered.length;j++){
     notifyPlayer(unanswered[j].player_id,title,body,title,emailHtml);
   }
-  alert('P\u00e5mindelse sendt til '+unanswered.length+' spiller(e) der ikke har svaret.');
+  alert('P\u00e5mindelse sendt til '+unanswered.length+' inviterede spiller(e) der ikke har svaret.');
 };
 
 function rMineTraening(){
