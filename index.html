@@ -2063,6 +2063,16 @@ function rEventRow(ev,team,isPast){
   html+='<span style="font-size:13px;color:#1e8449;font-weight:700;">'+yesCount+'</span>';
   html+='<span style="font-size:12px;color:#aaa;">/</span>';
   html+='<span style="font-size:13px;color:#c0392b;font-weight:700;">'+noCount+'</span>';
+  if(STATE.profile&&STATE.profile.is_player&&!isPast){
+    var myRowResp=responses.filter(function(r){return r.player_id===STATE.profile.id;})[0]||null;
+    if(myRowResp&&myRowResp.response==='yes'){
+      html+='<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#eafaf1;color:#1e8449;">&#10003; Tilmeldt</span>';
+    } else if(myRowResp&&myRowResp.response==='no'){
+      html+='<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#fdecea;color:#c0392b;">&#10007; Frameldt</span>';
+    } else if(myRowResp&&myRowResp.response===null){
+      html+='<button class="btn btn-dark btn-sm" style="font-size:11px;padding:2px 8px;" onclick="event.stopPropagation();STATE.trainerRespondingTo=\''+ev.id+'\';STATE.openEvent=\''+ev.id+'\';render()">Svar</button>';
+    }
+  }
   html+='<button class="btn btn-light btn-sm" onclick="event.stopPropagation();editEvent(\''+ev.id+'\')">&#9881;</button>';
   html+='<span style="color:#aaa;font-size:12px;">'+(isOpen?'&#9650;':'&#9660;')+'</span>';
   html+='</div></div>';
@@ -2135,11 +2145,17 @@ function rEventDetail(ev,responses){
       for(var rri=0;rri<reserves.length;rri++){
         var rr=reserves[rri];
         var rrname=getPlayerName(rr.player_id);
-        var alreadyInvited=responses.some(function(r){return r.player_id===rr.player_id;});
+        var rrResp=responses.find(function(r){return r.player_id===rr.player_id;})||null;
         html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
         html+='<span style="font-size:13px;">'+esc(rrname)+'</span>';
-        if(alreadyInvited){
-          html+='<span style="font-size:11px;color:#1e8449;">Allerede inviteret</span>';
+        if(rrResp&&rrResp.response==='yes'){
+          html+='<span style="font-size:11px;color:#1e8449;font-weight:600;">&#10003; Tilmeldt</span>';
+        } else if(rrResp&&rrResp.response==='no'){
+          html+='<span style="font-size:11px;color:#c0392b;font-weight:600;">&#10007; Frameldt</span>';
+        } else if(rrResp&&rrResp.note==='Inviteret som reserve'){
+          html+='<span style="font-size:11px;color:#b7770d;">Inviteret, afventer svar</span>';
+        } else if(rrResp){
+          html+='<span style="font-size:11px;color:#1d6fb5;">Udtaget som spiller</span>';
         } else {
           html+='<button class="btn btn-dark btn-sm" onclick="inviteReserve(\''+ev.id+'\',\''+rr.player_id+'\')">Invit\u00e9r</button>';
         }
@@ -3718,10 +3734,13 @@ function rCaptainEventDetail(ev,responses){
       html+='<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:10px;margin-top:8px;">';
       for(var rci=0;rci<reserves.length;rci++){
         var rc=reserves[rci];
-        var alreadyInvited=responses.some(function(r){return r.player_id===rc.player_id;});
+        var rcResp=responses.find(function(r){return r.player_id===rc.player_id;})||null;
         html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;">';
         html+='<span style="font-size:12px;">'+esc(getPlayerName(rc.player_id))+'</span>';
-        if(alreadyInvited){html+='<span style="font-size:11px;color:#1e8449;">Inviteret</span>';}
+        if(rcResp&&rcResp.response==='yes'){html+='<span style="font-size:11px;color:#1e8449;font-weight:600;">&#10003; Tilmeldt</span>';}
+        else if(rcResp&&rcResp.response==='no'){html+='<span style="font-size:11px;color:#c0392b;font-weight:600;">&#10007; Frameldt</span>';}
+        else if(rcResp&&rcResp.note==='Inviteret som reserve'){html+='<span style="font-size:11px;color:#b7770d;">Afventer svar</span>';}
+        else if(rcResp){html+='<span style="font-size:11px;color:#1d6fb5;">Udtaget som spiller</span>';}
         else{html+='<button class="btn btn-dark btn-sm" onclick="inviteReserve(\''+ev.id+'\',\''+rc.player_id+'\')">Invit\u00e9r</button>';}
         html+='</div>';
       }
