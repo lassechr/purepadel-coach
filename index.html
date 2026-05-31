@@ -3501,30 +3501,25 @@ window.savePlayer=function(){
   if(email&&pw){
     // Create with login
     if(pw.length<6){alert('Password skal v\u00e6re mindst 6 tegn');return;}
-    sbFetch('POST','/auth/v1/signup',{email:email,password:pw},null).then(function(data){
-      if(data.id||(data.user&&data.user.id)){
-        var uid=data.id||data.user.id;
-        sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{
-          name:n.trim(),role:'player',club_id:cid,status:'active',notify_push:true,notify_email:true
-        },SB_KEY).then(function(){
-          sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt((document.getElementById('pL')||{}).value)||3)),side:(document.getElementById('pS')||{}).value||'begge',notes:((document.getElementById('pO')||{}).value||'').trim(),profile_id:uid}).then(function(){
-            if(sendMail){
-              var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
-                +'<h2>Velkommen til PurePadel!</h2>'
-                +'<p>Din konto er oprettet. Log ind med:</p>'
-                +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
-                +'<strong>Email:</strong> '+email+'<br><strong>Password:</strong> '+pw+'</div>'
-                +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
-                +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
-              sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet.\n\nEmail: '+email+'\nPassword: '+pw+'\n\nLog ind p\u00e5: https://coach.purepadel.dk',emailHtml);
-            }
-            closeModal();loadPlayers().then(render);
-          });
-        });
-      } else {
-        if(data.code==='user_already_exists'){alert('Email er allerede i brug.');}
-        else{alert('Fejl: '+(data.message||data.error||JSON.stringify(data)));}
-      }
+    createAuthUser(email,pw,n.trim(),'player',cid,null,function(err,data){
+      if(err){alert('Fejl ved oprettelse: '+err);return;}
+      var uid=data.id||data.user.id;
+      var lvl=Math.min(5,Math.max(1,parseInt((document.getElementById('pL')||{}).value)||3));
+      var side=(document.getElementById('pS')||{}).value||'begge';
+      var notes=((document.getElementById('pO')||{}).value||'').trim();
+      sbPost('players',{club_id:cid,name:n.trim(),level:lvl,side:side,notes:notes,profile_id:uid}).then(function(){
+        if(sendMail){
+          var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+            +'<h2>Velkommen til PurePadel!</h2>'
+            +'<p>Din konto er oprettet. Log ind med:</p>'
+            +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
+            +'<strong>Email:</strong> '+email+'<br><strong>Password:</strong> '+pw+'</div>'
+            +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
+            +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+          sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet.\n\nEmail: '+email+'\nPassword: '+pw+'\n\nLog ind på: https://coach.purepadel.dk',emailHtml);
+        }
+        closeModal();loadPlayers().then(render);
+      });
     });
   } else {
     // Create without login (manual player, no auth)
@@ -3795,20 +3790,27 @@ window.doImp=function(){
   }
   // Players with email - create auth + profile + players
   var emailPromises=withEmail.map(function(p){
-    var pw=Math.random().toString(36).substr(2,8); // random password
-    return sbFetch('POST','/auth/v1/signup',{email:p.email,password:pw},null).then(function(data){
-      if(data.id||(data.user&&data.user.id)){
+    var pw=Math.random().toString(36).substr(2,8);
+    return new Promise(function(resolve){
+      createAuthUser(p.email,pw,p.name,'player',cid,null,function(err,data){
+        if(err){
+          // Fejl - opret spiller uden login
+          sbPost('players',{club_id:cid,name:p.name,level:p.level,side:p.side,notes:p.notes}).then(resolve);
+          return;
+        }
         var uid=data.id||data.user.id;
-        return sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{name:p.name,role:'player',club_id:cid,status:'active',notify_push:true,notify_email:true},SB_KEY).then(function(){
-          return sbPost('players',{club_id:cid,name:p.name,level:p.level,side:p.side,notes:p.notes,profile_id:uid}).then(function(){
-            // Send welcome email
-            var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'              +'<h2>Velkommen til PurePadel!</h2>'              +'<p>Din konto er oprettet. Log ind med:</p>'              +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'              +'<strong>Email:</strong> '+p.email+'<br><strong>Password:</strong> '+pw+'</div>'              +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'              +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
-            sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet.\n\nEmail: '+p.email+'\nPassword: '+pw+'\n\nLog ind p\u00e5: https://coach.purepadel.dk',emailHtml);
-          });
+        sbPost('players',{club_id:cid,name:p.name,level:p.level,side:p.side,notes:p.notes,profile_id:uid}).then(function(){
+          var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
+            +'<h2>Velkommen til PurePadel!</h2>'
+            +'<p>Din konto er oprettet. Log ind med:</p>'
+            +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
+            +'<strong>Email:</strong> '+p.email+'<br><strong>Password:</strong> '+pw+'</div>'
+            +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
+            +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+          sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet.\n\nEmail: '+p.email+'\nPassword: '+pw+'\n\nLog ind på: https://coach.purepadel.dk',emailHtml);
+          resolve();
         });
-      }
-      // Email already exists - just create players entry without login
-      return sbPost('players',{club_id:cid,name:p.name,level:p.level,side:p.side,notes:p.notes});
+      });
     });
   });
   Promise.all(promises.concat(emailPromises)).then(function(){
@@ -4033,51 +4035,38 @@ window.createUser=function(){
   var sendMail=document.getElementById('uSendMail')&&document.getElementById('uSendMail').checked;
   if(!email||!pw){alert('Email og password er p\u00e5kr\u00e6vet');return;}
   if(pw.length<6){alert('Password skal v\u00e6re mindst 6 tegn');return;}
-  sbFetch('POST','/auth/v1/signup',{email:email,password:pw},null)
-  .then(function(data){
-    if(data.id||(data.user&&data.user.id)){
-      var uid=data.id||data.user.id;
-      var role=type==='club'?'club_admin':type==='player'?'player':'trainer';
-      var profileData={
-        name:name||email,
-        role:role,
-        club_name:clubName||name,
-        subscription_type:type==='player'?'player':type,
-        subscription_expires:exp||(type==='player'?null:'2099-12-31'),
-        status:type==='player'?'active':null
-      };
-      // For club_admin set club_id to their own profile id
-      return sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid, profileData, SB_KEY).then(function(){
-        if(type==='player'){
-          // Create players entry too
-          sbPost('players',{club_id:clubId(),name:name||email,level:3,side:'begge',notes:'',profile_id:uid});
-        }
+  var role=type==='club'?'club_admin':type==='player'?'player':'trainer';
+  var tok=STATE.session?STATE.session.access_token:null;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',SB_URL+'/functions/v1/create-user',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Authorization','Bearer '+tok);
+  xhr.setRequestHeader('apikey',SB_KEY);
+  xhr.onload=function(){
+    var res={};
+    try{res=JSON.parse(xhr.responseText);}catch(e){}
+    if(xhr.status===200&&res.ok){
+      var uid=res.uid;
+      var profileData={name:name||email,role:role,club_name:clubName||name,subscription_type:type==='player'?'player':type,subscription_expires:exp||(type==='player'?null:'2099-12-31'),status:type==='player'?'active':null};
+      sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,profileData,SB_KEY).then(function(){
+        if(type==='player'){sbPost('players',{club_id:clubId(),name:name||email,level:3,side:'begge',notes:'',profile_id:uid});}
         if(sendMail){
           var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
             +'<h2 style="color:#111;">Velkommen til PurePadel</h2>'
             +'<p>Din konto er oprettet. Her er dine login-oplysninger:</p>'
             +'<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;">'
-            +'<strong>Email:</strong> '+email+'<br>'
-            +'<strong>Password:</strong> '+pw
-            +'</div>'
+            +'<strong>Email:</strong> '+email+'<br><strong>Password:</strong> '+pw+'</div>'
             +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Log ind nu</a>'
-            +'<p style="color:#888;font-size:12px;margin-top:20px;">Husk at skifte dit password efter f\u00f8rste login.<br>PurePadel</p></div>';
-          sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet p\u00e5 coach.purepadel.dk\n\nEmail: '+email+'\nPassword: '+pw,emailHtml);
+            +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+          sendEmailToPlayer(uid,'Velkommen til PurePadel','Din konto er oprettet på coach.purepadel.dk\n\nEmail: '+email+'\nPassword: '+pw,emailHtml);
         }
-        return Promise.resolve();
+        closeModal();loadAllProfiles().then(render);
       });
     } else {
-      if(data.code==='user_already_exists'||data.message==='User already registered'){
-        alert('Email er allerede i brug. Slet brugeren f\u00f8rst eller brug en anden email.');
-      } else {
-        alert('Fejl: '+(data.message||data.error_description||data.error||JSON.stringify(data)));
-      }
-      return Promise.reject('failed');
+      alert('Fejl: '+(res.error||xhr.responseText));
     }
-  }).then(function(){
-    closeModal();
-    loadAllProfiles().then(render);
-  }).catch(function(e){if(e!=='failed')alert('Noget gik galt \u2013 pr\u00f8v igen');});
+  };
+  xhr.send(JSON.stringify({email:email,password:pw,name:name,role:role,clubId:clubId()}));
 };
 
 window.renewUser=function(id){
