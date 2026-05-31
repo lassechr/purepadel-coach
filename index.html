@@ -3334,7 +3334,10 @@ function rPlayerApp(){
       var mem=myMemberships.filter(function(m){return m.team_id===mt.id;})[0];
       var isRes=mem&&mem.is_reserve;
       var isCap=mem&&mem.is_captain;
-      html+='<div style="display:inline-flex;align-items:center;gap:6px;background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:6px 12px;margin-right:8px;margin-bottom:8px;">';
+      var teamHasUpcoming=(STATE.playerEvents||[]).some(function(e){return e.team_id===mt.id&&new Date(e.date)>=now;});
+      var tBorder=teamHasUpcoming?'#2ecc71':'#eee';
+      var tBg=teamHasUpcoming?'#f0faf4':'#f9f9f9';
+      html+='<div style="display:inline-flex;align-items:center;gap:6px;background:'+tBg+';border:1px solid '+tBorder+';border-radius:8px;padding:6px 12px;margin-right:8px;margin-bottom:8px;">';
       html+='<span style="font-size:13px;font-weight:500;">'+esc(mt.name)+'</span>';
       if(isCap)html+='<span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:4px;padding:1px 5px;">&#9733; Kaptajn</span>';
       if(isRes)html+='<span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:4px;padding:1px 5px;">Reserve</span>';
