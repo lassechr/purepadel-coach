@@ -1704,6 +1704,33 @@ function syncDatePicker(id) {
   if(id==='evDateOnly')autoFillEndDate();
 }
 
+function makeTimePicker(id, val) {
+  var hh='', mm='';
+  if(val){var p=val.split(':');hh=p[0]||'';mm=p[1]?p[1].substring(0,2):'';}
+  var hours='<option value="">Tt</option>';
+  for(var i=0;i<24;i++){var v=(i<10?'0':'')+i;hours+='<option value="'+v+'"'+(hh===v?' selected':'')+'>'+v+'</option>';}
+  var mins='<option value="">Min</option>';
+  ['00','05','10','15','20','25','30','35','40','45','50','55','59'].forEach(function(v){
+    mins+='<option value="'+v+'"'+(mm===v?' selected':'')+'>'+v+'</option>';
+  });
+  var fn='syncTimePicker(\''+id+'\')';
+  return '<div style="display:flex;gap:4px;align-items:center;">'
+    +'<select class="finput" id="'+id+'_h" style="flex:1;margin-bottom:0;" onchange="'+fn+'">'+hours+'</select>'
+    +'<span style="font-size:16px;color:#888;">:</span>'
+    +'<select class="finput" id="'+id+'_m" style="flex:1;margin-bottom:0;" onchange="'+fn+'">'+mins+'</select>'
+    +'<input type="hidden" id="'+id+'">'
+    +'</div>';
+}
+
+function syncTimePicker(id) {
+  var h=(document.getElementById(id+'_h')||{}).value||'';
+  var m=(document.getElementById(id+'_m')||{}).value||'';
+  var hidden=document.getElementById(id);
+  if(hidden)hidden.value=(h&&m)?(h+':'+m):'';
+  if(id==='evTimeOnly')autoFillEndDate();
+}
+
+
 // ── HOLD (TEAMS + EVENTS) ────────────────────────────────────
 function rHold(){
   var role=STATE.profile?STATE.profile.role:'';
@@ -2232,16 +2259,16 @@ function rEventModal(){
 
   html+='<div class="frow">';
   html+='<div><label class="flabel">Startdato</label>'+makeDatePicker('evDateOnly',ed.date?localDT(ed.date).split('T')[0]:localDTNextHour(1).split('T')[0])+'</div>';
-  html+='<div><label class="flabel">Starttidspunkt</label><input class="finput" id="evTimeOnly" type="time" value="'+(ed.date?localDT(ed.date).split('T')[1]:localDTNextHour(1).split('T')[1])+'"></div>';
+  html+='<div><label class="flabel">Starttidspunkt</label>'+makeTimePicker('evTimeOnly',ed.date?localDT(ed.date).split('T')[1]:localDTNextHour(1).split('T')[1])+'</div>';
   html+='</div>';
   html+='<input type="hidden" id="evDate">';
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Sluttidspunkt</label><input class="finput" id="evEndTime" type="time" value="'+(ed.end_time?localDT(ed.end_time).split('T')[1]:localDTNextHour(3).split('T')[1])+'"></div>';
+  html+='<div><label class="flabel">Sluttidspunkt</label>'+makeTimePicker('evEndTime',ed.end_time?localDT(ed.end_time).split('T')[1]:localDTNextHour(3).split('T')[1])+'</div>';
   html+='<div></div>';
   html+='</div>';
   html+='<div class="frow">';
   html+='<div><label class="flabel">Tilmeldingsfrist dato</label>'+makeDatePicker('evDeadlineDate',ed.signup_deadline?localDT(ed.signup_deadline).split('T')[0]:'')+'</div>';
-  html+='<div><label class="flabel">Tidspunkt</label><input class="finput" id="evDeadlineTime" type="time" value="'+(ed.signup_deadline?localDT(ed.signup_deadline).split('T')[1]:'23:59')+'"></div>';
+  html+='<div><label class="flabel">Tidspunkt</label>'+makeTimePicker('evDeadlineTime',ed.signup_deadline?localDT(ed.signup_deadline).split('T')[1]:'23:59')+'</div>';
   html+='</div>';
   // Recurrence
   if(!ed.id){
@@ -2550,16 +2577,26 @@ window.toggleAllPlayers=function(){
 };
 
 window.autoFillEndDate=function(){
-  var dateEl=document.getElementById('evDateOnly');
-  var timeEl=document.getElementById('evTimeOnly');
-  var endEl=document.getElementById('evEndTime');
-  if(!dateEl||!timeEl||!endEl)return;
-  var start=new Date(dateEl.value+'T'+(timeEl.value||'00:00'));
+  var dateVal=(document.getElementById('evDateOnly')||{}).value||'';
+  var timeVal=(document.getElementById('evTimeOnly')||{}).value||'';
+  if(!dateVal||!timeVal)return;
+  var start=new Date(dateVal+'T'+timeVal);
   if(isNaN(start))return;
   var end=new Date(start);
   end.setHours(end.getHours()+2);
   var pad=function(n){return n<10?'0'+n:String(n);};
-  endEl.value=pad(end.getHours())+':'+pad(end.getMinutes());
+  var hh=pad(end.getHours());var mm=pad(end.getMinutes());
+  var hEl=document.getElementById('evEndTime_h');
+  var mEl=document.getElementById('evEndTime_m');
+  var hidden=document.getElementById('evEndTime');
+  if(hEl)hEl.value=hh;
+  if(mEl){
+    // Find nærmeste 5-minut interval
+    var mOpts=['00','05','10','15','20','25','30','35','40','45','50','55','59'];
+    var closest=mOpts.reduce(function(a,b){return Math.abs(parseInt(b)-parseInt(mm))<Math.abs(parseInt(a)-parseInt(mm))?b:a;});
+    mEl.value=closest;mm=closest;
+  }
+  if(hidden)hidden.value=hh+':'+mm;
 };
 
 window.setEvType=function(type){
@@ -3387,11 +3424,13 @@ function loadPlayerData(){
     return sbGet('teams','id=in.('+(allMemberTeamIds.length?allMemberTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
       STATE.playerTeams=Array.isArray(teams)?teams:[];
       // Load events from regular teams
-      if(!regularTeamIds.length){STATE.playerEvents=[];STATE.playerResponses=[];return Promise.resolve();}
-      return sbGet('events','team_id=in.('+regularTeamIds.join(',')+')&order=date');
+      var evPromise=regularTeamIds.length
+        ?sbGet('events','team_id=in.('+regularTeamIds.join(',')+')&order=date')
+        :Promise.resolve([]);
+      return evPromise;
     }).then(function(events){
       STATE.playerEvents=Array.isArray(events)?events:[];
-      // Also load events player was specifically invited to as reserve
+      // Also load events player was specifically invited to (reserve invite)
       return sbGet('event_responses','player_id=eq.'+pid+'&response=is.null');
     }).then(function(invitations){
       if(Array.isArray(invitations)&&invitations.length){
