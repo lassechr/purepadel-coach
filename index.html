@@ -4023,16 +4023,21 @@ window.renewUser=function(id){
 
 window.deleteUser=function(id){
   if(!confirm('Slet bruger permanent? Handlingen kan ikke fortrydes.'))return;
-  // Delete players entry first, then profile (trigger deletes auth.users)
-  sbDelete('players','profile_id=eq.'+id).then(function(){
-    sbDelete('team_members','player_id=eq.'+id).then(function(){
-      sbDelete('push_subscriptions','player_id=eq.'+id).then(function(){
-        sbDelete('profiles','id=eq.'+id).then(function(){
-          loadAllProfiles().then(render);
-        });
-      });
-    });
-  });
+  var tok=STATE.session?STATE.session.access_token:null;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',SB_URL+'/functions/v1/delete-user',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Authorization','Bearer '+tok);
+  xhr.setRequestHeader('apikey',SB_KEY);
+  xhr.onload=function(){
+    if(xhr.status===200){
+      loadAllProfiles().then(function(){return loadPlayers();}).then(render);
+    } else {
+      alert('Fejl ved sletning: '+xhr.responseText);
+    }
+  };
+  xhr.onerror=function(){alert('Netværksfejl ved sletning');};
+  xhr.send(JSON.stringify({userId:id}));
 };
 
 window.makeMasterDrill=function(id){
