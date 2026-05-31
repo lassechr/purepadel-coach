@@ -697,7 +697,13 @@ function rAdmin() {
       html += '</div></div></div>';
     }}
   } else {
-    var sList=profiles.filter(function(p){return p.role==='player';});
+    // Vis spillere + trænere der stadig har en players-post (spiller-træner)
+    var playerProfileIds=STATE.players.map(function(pl){return pl.profile_id;}).filter(Boolean);
+    var sList=profiles.filter(function(p){
+      if(p.role==='player') return true;
+      if(p.role==='trainer') return playerProfileIds.indexOf(p.id)>=0;
+      return false;
+    });
     if(!sList.length){ html+='<div class="empty">Ingen spillere endnu</div>'; }
     else { for(var si=0;si<sList.length;si++){
       var sp=sList[si];
@@ -708,7 +714,14 @@ function rAdmin() {
       html += '<div style="display:flex;align-items:center;gap:8px;">';
       html += '<div class="status-dot" style="background:'+spColor+';flex-shrink:0;"></div>';
       html += '<span style="font-size:14px;font-weight:600;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(sp.name||sp.email||'Ingen navn')+'</span>';
-      html += '<span class="user-role" style="color:#1e6f3e;background:#eafaf1;border-color:#a9dfbf;flex-shrink:0;">Spiller</span>';
+      var isPlayerTrainer=sp.role==='trainer';
+      var spTrainerTeams=[];
+      if(isPlayerTrainer&&STATE.teamMembersCache){for(var stk in STATE.teamMembersCache){var stms=STATE.teamMembersCache[stk];for(var sti=0;sti<stms.length;sti++){if(stms[sti].player_id===sp.id&&stms[sti].is_trainer){var stt=STATE.teams.filter(function(t){return t.id===stk;})[0];if(stt)spTrainerTeams.push(stt.name);break;}}}}
+      var trainerLabel=isPlayerTrainer?(spTrainerTeams.length?'Træner: '+spTrainerTeams.join(', '):'Træner'):'Spiller';
+      var trainerBg=isPlayerTrainer?'#f0f7ff':'#eafaf1';
+      var trainerColor=isPlayerTrainer?'#1a6fb5':'#1e6f3e';
+      var trainerBorder=isPlayerTrainer?'#b3d4f5':'#a9dfbf';
+      html += '<span class="user-role" style="color:'+trainerColor+';background:'+trainerBg+';border-color:'+trainerBorder+';flex-shrink:0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+trainerLabel+'</span>';
       html += '</div>';
       html += '<div style="font-size:12px;color:#888;padding-left:16px;">'+(sp.email?esc(sp.email):'<span style="color:#e67e22;">Ingen email</span>')+'</div>';
       html += '<div style="display:flex;align-items:center;gap:8px;padding-left:16px;flex-wrap:wrap;">';
@@ -2718,6 +2731,22 @@ function rKonto(){
   html+='<div style="height:1px;background:#eee;margin-bottom:14px;"></div>';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:13px;color:#888;">Type</span><span class="user-role" style="color:'+tc+';background:'+tb+';border-color:'+tbo+';">'+tl+'</span></div>';
   if(p.club_name&&p.club_name!=='null'){html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:13px;color:#888;">Forening</span><span style="font-size:13px;font-weight:600;color:#111;">'+esc(p.club_name)+'</span></div>';}
+  // Vis trænerhold hvis brugeren er træner
+  if(p.role==='trainer'){
+    var myTrTeams=[];
+    if(STATE.teamMembersCache){for(var ktk in STATE.teamMembersCache){var ktms=STATE.teamMembersCache[ktk];for(var kti=0;kti<ktms.length;kti++){if(ktms[kti].player_id===p.id&&ktms[kti].is_trainer){var ktt=STATE.teams.filter(function(t){return t.id===ktk;})[0];if(ktt)myTrTeams.push(ktt.name);break;}}}}
+    html+='<div style="height:1px;background:#eee;margin-bottom:14px;"></div>';
+    html+='<div style="margin-bottom:6px;"><span style="font-size:13px;color:#888;">Træner på</span></div>';
+    if(myTrTeams.length){
+      html+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+      for(var kni=0;kni<myTrTeams.length;kni++){
+        html+='<span style="font-size:12px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:6px;padding:4px 10px;font-weight:600;">'+esc(myTrTeams[kni])+'</span>';
+      }
+      html+='</div>';
+    } else {
+      html+='<span style="font-size:13px;color:#aaa;">Ingen hold tildelt endnu</span>';
+    }
+  }
   html+='</div>';
 
   // Logo upload card
