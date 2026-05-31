@@ -2886,8 +2886,7 @@ window.saveAddLogin=function(){
       alert('Fejl ved oprettelse: '+err);return;
     }
     var uid=data.id||data.user.id;
-    sbFetch('PATCH','/rest/v1/profiles?id=eq.'+uid,{status:'active',role:'player',club_id:cid,subscription_type:'player',name:d.name||email},SB_KEY);
-    sbPatch('players',{profile_id:uid},'id=eq.'+d.playerId);
+    // Edge function håndterer allerede profil-opdatering og players-link
     if(sendMail){
       var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
         +'<h2>Velkommen til PurePadel!</h2>'
