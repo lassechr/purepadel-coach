@@ -2086,9 +2086,7 @@ function rEventRow(ev,team,isPast){
 function rEventDetail(ev,responses){
   var yes=responses.filter(function(r){return r.response==='yes';});
   var no=responses.filter(function(r){return r.response==='no';});
-  var unanswered=STATE.players.filter(function(p){
-    return !responses.find(function(r){return r.player_id===p.id;});
-  });
+  var pending=responses.filter(function(r){return r.response===null;});
   // Trainer response: show for any trainer (they can respond to their own events)
   var isTrainer=STATE.profile&&(STATE.profile.role==='trainer'||STATE.profile.role==='club_admin'||STATE.profile.role==='superadmin');
   var myTrainerResp=null;
@@ -2121,11 +2119,15 @@ function rEventDetail(ev,responses){
     html+='</div>';
   }
 
-  // NOT ANSWERED
-  html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px;">Ikke svaret ('+unanswered.length+')</div>';
-  if(!unanswered.length)html+='<div style="font-size:12px;color:#aaa;">Alle har svaret</div>';
-  for(var k=0;k<unanswered.length;k++){
-    html+='<div style="font-size:13px;color:#aaa;padding:5px 0;border-bottom:1px solid #eee;">'+esc(unanswered[k].name)+'</div>';
+  // PENDING (invited, no response yet)
+  html+='<div style="font-size:11px;font-weight:700;color:#b7770d;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px;">Afventer svar ('+pending.length+')</div>';
+  if(!pending.length)html+='<div style="font-size:12px;color:#aaa;">Alle har svaret</div>';
+  for(var k=0;k<pending.length;k++){
+    var rp=pending[k];
+    html+='<div style="font-size:13px;color:#888;padding:5px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">';
+    html+='<span>'+esc(getPlayerName(rp.player_id))+'</span>';
+    if(rp.note==='Inviteret som reserve')html+='<span style="font-size:11px;color:#b7770d;font-style:italic;">Reserve</span>';
+    html+='</div>';
   }
 
   // Actions
