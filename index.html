@@ -2215,16 +2215,29 @@ window.addPlayerToTeam=function(sel,playerId){
     if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    // Ingen login endnu - brug players.id som player_id midlertidigt
-    profileId=playerId;
+    // Ingen login - opret skygge-profil i profiles
+    var playerName2='';
+    for(var pi2=0;pi2<STATE.players.length;pi2++){if(STATE.players[pi2].id===playerId){playerName2=STATE.players[pi2].name||'';break;}}
+    sbPost('profiles',{name:playerName2,role:'player',status:'active',club_id:clubId(),notify_push:false,notify_email:false}).then(function(newProf){
+      if(!newProf||!newProf.id){alert('Kunne ikke oprette profil');return;}
+      sbPatch('players',{profile_id:newProf.id},'id=eq.'+playerId).then(function(){
+        sbPost('team_members',{team_id:teamId,player_id:newProf.id,is_reserve:isReserve}).then(function(res2){
+          if(res2&&res2.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
+          if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+          delete STATE.teamMembersCache[teamId];
+          loadPlayers().then(function(){return loadTeamMembersCache();}).then(render);
+        });
+      });
+    });
+    return;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId,is_reserve:isReserve}).then(function(res){
-    if(res&&res.code==='23505'){alert('Spilleren er allerede p\u00e5 dette hold.');return;}
+    if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
     if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
     if(!STATE.teamMembersCache)STATE.teamMembersCache={};
     delete STATE.teamMembersCache[teamId];
     loadTeamMembersCache().then(render);
-  }).catch(function(e){alert('Netv\u00e6rksfejl: '+e.message);});
+  }).catch(function(e){alert('Netværksfejl: '+e.message);});
 };
 
 window.removePlayerFromTeam=function(memberId,teamId){
@@ -2597,7 +2610,21 @@ window.addTeamMember=function(teamId){
     if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    profileId=playerId; // Ingen login - brug players.id direkte
+    // Ingen login - opret skygge-profil
+    var pName2='';
+    for(var pi3=0;pi3<STATE.players.length;pi3++){if(STATE.players[pi3].id===playerId){pName2=STATE.players[pi3].name||'';break;}}
+    sbPost('profiles',{name:pName2,role:'player',status:'active',club_id:clubId(),notify_push:false,notify_email:false}).then(function(np){
+      if(!np||!np.id){alert('Kunne ikke oprette profil');return;}
+      sbPatch('players',{profile_id:np.id},'id=eq.'+playerId).then(function(){
+        sbPost('team_members',{team_id:teamId,player_id:np.id}).then(function(res){
+          if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
+          if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+          delete STATE.teamMembersCache[teamId];
+          loadPlayers().then(function(){return loadTeamMembersCache();}).then(render);
+        });
+      });
+    });
+    return;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId}).then(function(res){
     if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
