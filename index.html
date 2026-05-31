@@ -2218,7 +2218,9 @@ window.addPlayerToTeam=function(sel,playerId){
     // Ingen login - opret skygge-profil i profiles
     var playerName2='';
     for(var pi2=0;pi2<STATE.players.length;pi2++){if(STATE.players[pi2].id===playerId){playerName2=STATE.players[pi2].name||'';break;}}
-    sbPost('profiles',{name:playerName2,role:'player',status:'active',club_id:clubId(),notify_push:false,notify_email:false}).then(function(newProf){
+    var cid2=clubId();console.log('Opretter skygge-profil med club_id:',cid2,'navn:',playerName2);
+    sbPost('profiles',{name:playerName2,role:'player',status:'active',club_id:cid2,notify_push:false,notify_email:false}).then(function(newProf){
+    console.log('Profil svar:',JSON.stringify(newProf));
       var np=Array.isArray(newProf)?newProf[0]:newProf;
       if(!np||!np.id){alert('Kunne ikke oprette profil: '+JSON.stringify(newProf).substring(0,200));return;}
       sbPatch('players',{profile_id:np.id},'id=eq.'+playerId).then(function(){
