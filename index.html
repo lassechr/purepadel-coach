@@ -3307,7 +3307,7 @@ function rPlayerEventCard(ev,responses,isPast){
   html+='</div>';
 
   // My current response badge
-  if(myResp){
+  if(myResp&&myResp.response){
     var respColor=myResp.response==='yes'?'#1e8449':'#c0392b';
     var respBg=myResp.response==='yes'?'#eafaf1':'#fdecea';
     var respLabel=myResp.response==='yes'?'&#10003; Tilmeldt':'&#10007; Frameldt';
