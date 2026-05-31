@@ -1005,6 +1005,19 @@ function rPlayers() {
           html+='</span>';
         }
       }
+      // Vis traenerhold badges
+      if(playerProfileId&&STATE.teamMembersCache){
+        for(var ttk2 in STATE.teamMembersCache){
+          var ttms2=STATE.teamMembersCache[ttk2];
+          for(var tti2=0;tti2<ttms2.length;tti2++){
+            if(ttms2[tti2].player_id===playerProfileId&&ttms2[tti2].is_trainer){
+              var ttrTeam=STATE.teams.filter(function(t){return t.id===ttk2;})[0];
+              if(ttrTeam)html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;font-weight:600;">Træner: '+esc(ttrTeam.name)+'</span>';
+              break;
+            }
+          }
+        }
+      }
       // Add to team dropdown
       var availTeams=STATE.teams.filter(function(t){
         return !playerTeamIds.some(function(pt){return pt.teamId===t.id;});
