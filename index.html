@@ -937,13 +937,15 @@ function rPlayers() {
     // Find which teams this player is on
     var playerTeamIds=[];
     var playerProfileId=p.profile_id||null;
-    if(playerProfileId&&STATE.teamMembersCache){
+    // Match på både profile_id og players.id (spillere uden login)
+    var playerMatchIds=[p.id];
+    if(playerProfileId)playerMatchIds.push(playerProfileId);
+    if(STATE.teamMembersCache){
       for(var tk in STATE.teamMembersCache){
         var tms=STATE.teamMembersCache[tk];
         for(var tmi=0;tmi<tms.length;tmi++){
-          if(tms[tmi].player_id===playerProfileId&&!tms[tmi].is_trainer){
+          if(playerMatchIds.indexOf(tms[tmi].player_id)>=0&&!tms[tmi].is_trainer){
             playerTeamIds.push({teamId:tk,memberId:tms[tmi].id,isReserve:tms[tmi].is_reserve,isCaptain:tms[tmi].is_captain});
-            // Ingen break - saml alle hold
           }
         }
       }
@@ -4192,12 +4194,4 @@ if(STATE.session&&STATE.session.access_token){
 }
 </script>
 </body>
-</html>sion=STATE.openSession===id?null:id;render();};
-window.deleteSession=function(id){if(!confirm('Slet denne træning?'))return;sbDelete('sessions','id=eq.'+id).then(function(){loadSessions().then(render);});};
-window.promptSaveSession=function(){
-  var name=prompt('Navn på træningen:','Uge '+getWeekNumber(new Date())+' – '+new Date().toLocaleDateString('da-DK',{weekday:'long'}));
-  if(!name)return;
-  // Store player names in matches for historical lookup
-  var matchesWithNames=STATE.matches.map(function(m){
-    return {
-      t1:m.t1,t2:m.t2,round:m.r
+</html>
