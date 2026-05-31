@@ -2362,11 +2362,10 @@ function rEventModal(){
         if(!alreadyIn)teamMembers.push(parentMembers[pmi]);
       }
     }
-    html+='<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Debug: team='+selTeamId.substring(0,8)+'... members='+teamMembers.length+(parentTeamId?' (inkl. fra tr&#230;ningshold)':'')+'</div>';
     if(!teamMembers.length&&selTeamId){
       html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Ingen spillere på holdet endnu</div>';
     } else if(!selTeamId){
-      html+='<div style="font-size:12px;color:#aaa;">V&#230;lg et hold for at se spillere</div>';
+      html+='<div style="font-size:12px;color:#aaa;">Vælg et hold for at se spillere</div>';
     } else {
       var regulars=teamMembers.filter(function(m){return !m.is_reserve&&!m.is_trainer&&getPlayerName(m.player_id)!=='Ukendt';});
       var reserves=teamMembers.filter(function(m){return m.is_reserve&&getPlayerName(m.player_id)!=='Ukendt';});
@@ -2413,6 +2412,24 @@ function rEventModal(){
           html+='<span style="font-size:13px;">'+esc(STATE.profile.name||STATE.profile.email)+' <span style="font-size:10px;background:#f5eef8;color:#7d3c98;border:1px solid #d7bde2;border-radius:3px;padding:0 4px;">Træner</span></span>';
           html+='</label>';
         }
+      }
+      // Ekstra spillere fra klubben (ikke på holdet)
+      var onTeamIds=teamMembers.map(function(m){return m.player_id;});
+      if(STATE.profile&&STATE.profile.is_player&&onTeamIds.indexOf(STATE.profile.id)<0)onTeamIds.push(STATE.profile.id);
+      var extraClubPlayers=STATE.players.filter(function(pl){
+        return pl.profile_id&&onTeamIds.indexOf(pl.profile_id)<0;
+      });
+      if(extraClubPlayers.length){
+        html+='<div style="margin-top:12px;border-top:1px dashed #e0e0e0;padding-top:10px;">';
+        html+='<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px;">Tilføj ekstra spiller fra klubben</div>';
+        html+='<select id="evExtraPlayer" class="finput" style="margin-bottom:6px;" onchange="addExtraEvPlayer(this)">';
+        html+='<option value="">Vælg spiller...</option>';
+        for(var epi=0;epi<extraClubPlayers.length;epi++){
+          html+='<option value="'+extraClubPlayers[epi].profile_id+'|'+esc(extraClubPlayers[epi].name)+'">'+esc(extraClubPlayers[epi].name)+'</option>';
+        }
+        html+='</select>';
+        html+='<div id="evExtraList"></div>';
+        html+='</div>';
       }
     }
     html+='</div>';
@@ -2631,6 +2648,24 @@ window.toggleAllPlayers=function(){
   var cbs=document.querySelectorAll('.evPlayerCb');
   var allChecked=Array.prototype.every.call(cbs,function(cb){return cb.checked;});
   for(var i=0;i<cbs.length;i++)cbs[i].checked=!allChecked;
+};
+
+window.addExtraEvPlayer=function(sel){
+  var val=sel.value;
+  if(!val)return;
+  var parts=val.split('|');
+  var profileId=parts[0];
+  var name=parts.slice(1).join('|');
+  sel.value='';
+  // Remove from dropdown
+  for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===val){sel.remove(i);break;}}
+  // Add checkbox to extra list
+  var list=document.getElementById('evExtraList');
+  if(!list)return;
+  var lbl=document.createElement('label');
+  lbl.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;';
+  lbl.innerHTML='<input type="checkbox" class="evPlayerCb" value="'+profileId+'" checked style="width:16px;height:16px;"><span style="font-size:13px;">'+name+' <span style="font-size:10px;background:#e8f0fb;color:#1d6fb5;border:1px solid #b3cef0;border-radius:3px;padding:0 4px;">Ekstra</span></span>';
+  list.appendChild(lbl);
 };
 
 window.autoFillEndDate=function(){
@@ -2901,7 +2936,14 @@ window.sendReminder=function(eventId){
 
 function rMineTraening(){
   var html='<div class="sec-head"><div class="sec-title">Mine tr\u00e6ninger</div></div>';
-  var myEvents=STATE.playerEvents||[];
+  var myEvents=(STATE.playerEvents||[]).slice();
+  // Tr\u00e6ner-som-spiller: vis ogs\u00e5 events fra hold tr\u00e6neren styrer
+  if(STATE.profile&&STATE.profile.is_player&&STATE.events&&STATE.events.length){
+    var myEvIds=myEvents.map(function(e){return e.id;});
+    for(var mei=0;mei<STATE.events.length;mei++){
+      if(myEvIds.indexOf(STATE.events[mei].id)<0) myEvents.push(STATE.events[mei]);
+    }
+  }
   var myResponses=STATE.playerResponses||[];
   var now=new Date();
   var upcoming=myEvents.filter(function(e){return new Date(e.date)>=now;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
