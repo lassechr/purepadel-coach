@@ -509,6 +509,7 @@ function render() {
     if(dl < 30 && dl >= 0) html += '<span style="font-size:11px;color:'+(dl<7?'#c0392b':'#b7770d')+';">'+dl+' dage tilbage</span>';
   }
   html += '<span class="header-user">'+(p.name||p.email)+'</span>';
+  html += '<button onclick="loadAll()" title="Opdater" style="background:none;border:none;cursor:pointer;padding:4px 6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:20px;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#888'">&#8635;</button>';
   html += '<button class="header-logout" onclick="doLogout()">Log ud</button>';
   html += '</div></div>';
 
@@ -688,7 +689,21 @@ function rAdmin() {
       html += '</div>';
       html += '</div>';
     }
-  }
+  // Push test sektion
+  var allPlayers=profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
+  var allTrainers=profiles.filter(function(p){return p.role==='trainer'||p.role==='club_admin';});
+  var pushTargets=allPlayers.concat(allTrainers);
+  html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:16px;">';
+  html+='<div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;">TEST PUSH-NOTIFIKATION</div>';
+  html+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+  html+='<select id="pushTestTarget" style="flex:1;min-width:180px;padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;background:#fff;">';
+  html+='<option value="">Vælg modtager...</option>';
+  for(var pti=0;pti<pushTargets.length;pti++){var pt=pushTargets[pti];html+='<option value="'+pt.id+'">'+esc(pt.name||pt.email)+' ('+(pt.role==='player'?'Spiller':'Træner/Forening')+')</option>';}
+  html+='</select>';
+  html+='<button class="btn btn-dark btn-sm" onclick="sendTestPush()">Send test 🔔</button>';
+  html+='</div>';
+  html+='<div style="font-size:11px;color:#aaa;margin-top:8px;">Sender en test-notifikation med deep link til den valgte bruger</div>';
+  html+='</div>';
   return html;
 }
 
@@ -3652,6 +3667,18 @@ window.saveNotifyPref=function(type,val){
     STATE.profile['notify_'+type]=val;
     if(type==='push'&&val){enablePush();}
   });
+};
+
+window.sendTestPush=function(){
+  var sel=document.getElementById('pushTestTarget');
+  if(!sel||!sel.value){alert('Vælg en modtager først');return;}
+  var profileId=sel.value;
+  // Find første kommende begivenhed til deep link test
+  var now=new Date();
+  var upcoming=STATE.events.filter(function(e){return new Date(e.date)>=now;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var testEventId=upcoming.length?upcoming[0].id:null;
+  sendPushToPlayer(profileId,'🎾 Test notifikation',testEventId?'Tryk for at åbne begivenheden: '+upcoming[0].title:'PurePadel Coach test push 🔔',testEventId);
+  alert('Test-notifikation sendt!'+(testEventId?' Med link til: '+upcoming[0].title:''));
 };
 
 function sendPushToPlayer(profileId,title,body,eventId){
