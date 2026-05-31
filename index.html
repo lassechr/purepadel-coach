@@ -2580,7 +2580,7 @@ window.saveEvent=function(){
   var deadline=deadlineDate?(new Date(deadlineDate+'T'+deadlineTime)).toISOString():null;
   var recurType=((document.getElementById('evRecur')||{}).value||'');
   var recurEnd=((document.getElementById('evRecurEnd')||{}).value||'');
-
+  var data={
     team_id:teamId,
     trainer_id:STATE.profile.id,
     title:title.trim(),
