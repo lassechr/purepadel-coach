@@ -509,7 +509,7 @@ function render() {
     if(dl < 30 && dl >= 0) html += '<span style="font-size:11px;color:'+(dl<7?'#c0392b':'#b7770d')+';">'+dl+' dage tilbage</span>';
   }
   html += '<span class="header-user">'+(p.name||p.email)+'</span>';
-  html += '<button onclick="loadAll()" title="Opdater" style="background:none;border:none;cursor:pointer;padding:4px 6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:20px;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#888'">&#8635;</button>';
+  html += '<button onclick="loadAll()" title="Opdater" style="background:none;border:none;cursor:pointer;padding:4px 6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:20px;line-height:1;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#888\'">&#8635;</button>';
   html += '<button class="header-logout" onclick="doLogout()">Log ud</button>';
   html += '</div></div>';
 
@@ -689,6 +689,7 @@ function rAdmin() {
       html += '</div>';
       html += '</div>';
     }
+  }
   // Push test sektion
   var allPlayers=profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
   var allTrainers=profiles.filter(function(p){return p.role==='trainer'||p.role==='club_admin';});
