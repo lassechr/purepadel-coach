@@ -2412,6 +2412,9 @@ function rEventModal(){
         }
       }
       if(reserves.length){
+        var evTypeEl=document.getElementById('evType');
+        var evTypeVal=evTypeEl?evTypeEl.value:'match';
+        if(evTypeVal==='match'){
         html+='<div style="font-size:11px;font-weight:700;color:#b7770d;text-transform:uppercase;margin:10px 0 6px;">Reserver</div>';
         for(var rpi=0;rpi<reserves.length;rpi++){
           var rm=reserves[rpi];
@@ -2420,6 +2423,10 @@ function rEventModal(){
           html+='<input type="checkbox" class="evPlayerCb" value="'+rm.player_id+'" style="width:16px;height:16px;">';
           html+='<span style="font-size:13px;color:#888;">'+esc(rname)+' <span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:3px;padding:0 4px;">R</span></span>';
           html+='</label>';
+        }
+        html+='</div>';
+        } else {
+          html+='<div style="font-size:11px;color:#b7770d;margin:8px 0;">Reserver inviteres manuelt via begivenheden ('+reserves.length+')</div>';
         }
       }
       // Trainer-as-player: show self as selectable if is_player and not already in list
@@ -2808,10 +2815,16 @@ window.saveEvent=function(){
     var cur=new Date(startDate);
     var endDateObj=new Date(recurEnd+'T23:59:59');
     var interval=recurType==='biweekly'?14:7;
+    // Calculate deadline offset in ms relative to first event date
+    var deadlineOffsetMs=deadline?(new Date(deadline).getTime()-startDate.getTime()):null;
     while(cur<=endDateObj){
       var evData=JSON.parse(JSON.stringify(data));
       evData.date=new Date(cur).toISOString();
       evData.recurrence_id=recId;
+      // Shift deadline proportionally to this event's date
+      if(deadlineOffsetMs!==null){
+        evData.signup_deadline=new Date(cur.getTime()+deadlineOffsetMs).toISOString();
+      }
       if(endTimeVal){
         var ed2=new Date(cur);
         var p2=endTimeVal.split(':');
