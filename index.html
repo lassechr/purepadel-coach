@@ -851,7 +851,7 @@ function rPlayers() {
     // Show login status
     if(canManage){
       if(p.profile_id){
-        html+='<span style="font-size:10px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf;border-radius:4px;padding:1px 6px;">&#10003; Login</span>';
+        html+='<span style="font-size:10px;background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf;border-radius:4px;padding:1px 6px;">App &#10003;</span>';
       } else {
         html+='<span style="font-size:10px;background:#fdecea;color:#c0392b;border:1px solid #f5b7b1;border-radius:4px;padding:1px 6px;cursor:pointer;" onclick="openAddLoginModal(\''+p.id+'\',\''+esc(p.name)+'\')">+ Tilf&#248;j login</span>';
       }
@@ -1969,6 +1969,25 @@ function rEventModal(){
     // Get players from selected team
     var selTeamId=(ed.team_id)||'';
     var teamMembers=selTeamId&&STATE.teamMembersCache&&STATE.teamMembersCache[selTeamId]||[];
+    // For DPF teams: also include parent training team members
+    var parentTeamId=null;
+    for(var pti=0;pti<STATE.teams.length;pti++){
+      if(STATE.teams[pti].id===selTeamId&&STATE.teams[pti].parent_team_id){
+        parentTeamId=STATE.teams[pti].parent_team_id;break;
+      }
+    }
+    if(parentTeamId){
+      var parentMembers=STATE.teamMembersCache&&STATE.teamMembersCache[parentTeamId]||[];
+      // Merge: add parent members not already in teamMembers
+      for(var pmi=0;pmi<parentMembers.length;pmi++){
+        var alreadyIn=false;
+        for(var tmi=0;tmi<teamMembers.length;tmi++){
+          if(teamMembers[tmi].player_id===parentMembers[pmi].player_id){alreadyIn=true;break;}
+        }
+        if(!alreadyIn)teamMembers.push(parentMembers[pmi]);
+      }
+    }
+    html+='<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Debug: team='+selTeamId.substring(0,8)+'... members='+teamMembers.length+(parentTeamId?' (inkl. fra tr&#230;ningshold)':'')+'</div>';
     if(!teamMembers.length&&selTeamId){
       html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Ingen spillere på holdet endnu</div>';
     } else if(!selTeamId){
@@ -1976,6 +1995,15 @@ function rEventModal(){
     } else {
       var regulars=teamMembers.filter(function(m){return !m.is_reserve&&!m.is_trainer;});
       var reserves=teamMembers.filter(function(m){return m.is_reserve;});
+      // For match selection: include trainers who are also players (have profile in players table)
+      var trainerPlayers=teamMembers.filter(function(m){
+        if(!m.is_trainer)return false;
+        for(var pli=0;pli<STATE.players.length;pli++){
+          if(STATE.players[pli].profile_id===m.player_id)return true;
+        }
+        return false;
+      });
+      var allSelectable=regulars.concat(trainerPlayers);
       if(regulars.length){
         html+='<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;margin-bottom:6px;">Faste spillere</div>';
         for(var upi=0;upi<regulars.length;upi++){
@@ -2172,13 +2200,23 @@ window.inviteReserve=function(evId,profileId){
 window.openNewEvent=function(teamId,type){
   STATE.editEvent={team_id:teamId,type:type||'training'};
   STATE.modal='edit_event';
-  // Pre-load team members so player selection works without re-render
   if(!STATE.teamMembersCache)STATE.teamMembersCache={};
+  // Find parent team if DPF
+  var parentId=null;
+  for(var i=0;i<STATE.teams.length;i++){
+    if(STATE.teams[i].id===teamId&&STATE.teams[i].parent_team_id){
+      parentId=STATE.teams[i].parent_team_id;break;
+    }
+  }
+  var loads=[];
   if(!STATE.teamMembersCache[teamId]){
-    loadTeamMembers(teamId).then(function(members){
-      STATE.teamMembersCache[teamId]=Array.isArray(members)?members:[];
-      render();
-    });
+    loads.push(loadTeamMembers(teamId).then(function(m){STATE.teamMembersCache[teamId]=Array.isArray(m)?m:[];}));
+  }
+  if(parentId&&!STATE.teamMembersCache[parentId]){
+    loads.push(loadTeamMembers(parentId).then(function(m){STATE.teamMembersCache[parentId]=Array.isArray(m)?m:[];}));
+  }
+  if(loads.length){
+    Promise.all(loads).then(function(){render();});
   } else {
     render();
   }
