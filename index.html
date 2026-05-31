@@ -2063,7 +2063,8 @@ function rEventRow(ev,team,isPast){
   html+='<span style="font-size:13px;color:#1e8449;font-weight:700;">'+yesCount+'</span>';
   html+='<span style="font-size:12px;color:#aaa;">/</span>';
   html+='<span style="font-size:13px;color:#c0392b;font-weight:700;">'+noCount+'</span>';
-  if(STATE.profile&&STATE.profile.is_player&&!isPast){
+  var isTrainerRole=STATE.profile&&(STATE.profile.role==='trainer'||STATE.profile.role==='club_admin'||STATE.profile.role==='superadmin');
+  if(isTrainerRole&&!isPast){
     var myRowResp=responses.filter(function(r){return r.player_id===STATE.profile.id;})[0]||null;
     if(myRowResp&&myRowResp.response==='yes'){
       html+='<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#eafaf1;color:#1e8449;">&#10003; Tilmeldt</span>';
@@ -2088,9 +2089,10 @@ function rEventDetail(ev,responses){
   var unanswered=STATE.players.filter(function(p){
     return !responses.find(function(r){return r.player_id===p.id;});
   });
-  // Trainer-as-player: find own response
+  // Trainer response: show for any trainer (they can respond to their own events)
+  var isTrainer=STATE.profile&&(STATE.profile.role==='trainer'||STATE.profile.role==='club_admin'||STATE.profile.role==='superadmin');
   var myTrainerResp=null;
-  if(STATE.profile&&STATE.profile.is_player){
+  if(isTrainer){
     for(var mri=0;mri<responses.length;mri++){
       if(responses[mri].player_id===STATE.profile.id){myTrainerResp=responses[mri];break;}
     }
@@ -2166,7 +2168,7 @@ function rEventDetail(ev,responses){
   }
 
   // Trainer-as-player: show own response section
-  if(STATE.profile&&STATE.profile.is_player){
+  if(isTrainer){
     var isPastEv=new Date(ev.date)<new Date();
     var evDeadline=ev.signup_deadline?new Date(ev.signup_deadline):null;
     var evDeadlinePast=evDeadline&&evDeadline<new Date();
