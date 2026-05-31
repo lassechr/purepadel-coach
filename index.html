@@ -176,6 +176,14 @@ var CATS=[
   {id:'opvarmning',label:'Opvarmning',color:'#b7770d',bg:'#fef9e7',border:'#f9e79f'}
 ];
 
+function genUUID(){
+  var d=new Date().getTime();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){
+    var r=(d+Math.random()*16)%16|0;d=Math.floor(d/16);
+    return(c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+
 // ── STATE ────────────────────────────────────────────────────
 var STATE = {
   session: null,
@@ -2219,7 +2227,7 @@ window.addPlayerToTeam=function(sel,playerId){
     var playerName2='';
     for(var pi2=0;pi2<STATE.players.length;pi2++){if(STATE.players[pi2].id===playerId){playerName2=STATE.players[pi2].name||'';break;}}
     var cid2=clubId();
-    var newId=([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,function(c){return(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16);});
+    var newId=genUUID();
     sbPost('profiles',{id:newId,name:playerName2,role:'player',status:'active',club_id:cid2,notify_push:false,notify_email:false}).then(function(newProf){
       var np=Array.isArray(newProf)?newProf[0]:newProf;
       if(!np||!np.id){alert('Kunne ikke oprette profil: '+JSON.stringify(newProf).substring(0,200));return;}
@@ -2616,7 +2624,7 @@ window.addTeamMember=function(teamId){
     // Ingen login - opret skygge-profil
     var pName2='';
     for(var pi3=0;pi3<STATE.players.length;pi3++){if(STATE.players[pi3].id===playerId){pName2=STATE.players[pi3].name||'';break;}}
-    var newId2=([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,function(c){return(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16);});
+    var newId2=genUUID();
     sbPost('profiles',{id:newId2,name:pName2,role:'player',status:'active',club_id:clubId(),notify_push:false,notify_email:false}).then(function(npArr){
       var np=Array.isArray(npArr)?npArr[0]:npArr;
       if(!np||!np.id){alert('Kunne ikke oprette profil');return;}
