@@ -1674,6 +1674,36 @@ function localDTNextHour(hoursAhead){
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':00';
 }
 
+
+function makeDatePicker(id, val) {
+  var y='', m='', d='';
+  if(val){var p=val.split('-');y=p[0]||'';m=p[1]||'';d=p[2]||'';}
+  var days='<option value="">Dag</option>';
+  for(var i=1;i<=31;i++){var dv=(i<10?'0':'')+i;days+='<option value="'+dv+'"'+(d===dv?' selected':'')+'>'+i+'</option>';}
+  var months='<option value="">Mdr</option>';
+  var mnames=['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+  for(var i=0;i<12;i++){var mv=(i<9?'0':'')+(i+1);months+='<option value="'+mv+'"'+(m===mv?' selected':'')+'>'+mnames[i]+'</option>';}
+  var years='<option value="">År</option>';
+  var curY=new Date().getFullYear();
+  for(var i=curY;i<=curY+3;i++){years+='<option value="'+i+'"'+(y===String(i)?' selected':'')+'>'+i+'</option>';}
+  var fn='syncDatePicker(\'' + id + '\')';
+  return '<div style="display:flex;gap:4px;">'
+    +'<select class="finput" id="'+id+'_d" style="flex:0.8;margin-bottom:0;" onchange="'+fn+'">'+days+'</select>'
+    +'<select class="finput" id="'+id+'_m" style="flex:1;margin-bottom:0;" onchange="'+fn+'">'+months+'</select>'
+    +'<select class="finput" id="'+id+'_y" style="flex:1.2;margin-bottom:0;" onchange="'+fn+'">'+years+'</select>'
+    +'<input type="hidden" id="'+id+'">'
+    +'</div>';
+}
+
+function syncDatePicker(id) {
+  var d=(document.getElementById(id+'_d')||{}).value||'';
+  var m=(document.getElementById(id+'_m')||{}).value||'';
+  var y=(document.getElementById(id+'_y')||{}).value||'';
+  var hidden=document.getElementById(id);
+  if(hidden)hidden.value=(y&&m&&d)?(y+'-'+m+'-'+d):'';
+  if(id==='evDateOnly')autoFillEndDate();
+}
+
 // ── HOLD (TEAMS + EVENTS) ────────────────────────────────────
 function rHold(){
   var role=STATE.profile?STATE.profile.role:'';
@@ -2201,7 +2231,7 @@ function rEventModal(){
   html+='</select></div>';
 
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Startdato</label><input class="finput" id="evDateOnly" type="date" value="'+(ed.date?localDT(ed.date).split('T')[0]:localDTNextHour(1).split('T')[0])+'" onchange="autoFillEndDate()"></div>';
+  html+='<div><label class="flabel">Startdato</label>'+makeDatePicker('evDateOnly',ed.date?localDT(ed.date).split('T')[0]:localDTNextHour(1).split('T')[0])+'</div>';
   html+='<div><label class="flabel">Starttidspunkt</label><input class="finput" id="evTimeOnly" type="time" value="'+(ed.date?localDT(ed.date).split('T')[1]:localDTNextHour(1).split('T')[1])+'"></div>';
   html+='</div>';
   html+='<input type="hidden" id="evDate">';
@@ -2210,7 +2240,7 @@ function rEventModal(){
   html+='<div></div>';
   html+='</div>';
   html+='<div class="frow">';
-  html+='<div><label class="flabel">Tilmeldingsfrist dato</label><input class="finput" id="evDeadlineDate" type="date" value="'+(ed.signup_deadline?localDT(ed.signup_deadline).split('T')[0]:'')+'"></div>';
+  html+='<div><label class="flabel">Tilmeldingsfrist dato</label>'+makeDatePicker('evDeadlineDate',ed.signup_deadline?localDT(ed.signup_deadline).split('T')[0]:'')+'</div>';
   html+='<div><label class="flabel">Tidspunkt</label><input class="finput" id="evDeadlineTime" type="time" value="'+(ed.signup_deadline?localDT(ed.signup_deadline).split('T')[1]:'23:59')+'"></div>';
   html+='</div>';
   // Recurrence
@@ -2224,7 +2254,7 @@ function rEventModal(){
     html+='</select>';
     html+='<div id="evRecurEndWrap" style="display:none;margin-top:10px;">';
     html+='<label class="flabel">Gentag til og med</label>';
-    html+='<input class="finput" id="evRecurEnd" type="date">';
+    html+=makeDatePicker('evRecurEnd','');
     html+='</div></div>';
   } else if(ed.recurrence_id){
     html+='<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#b7770d;">Del af tilbagevendende serie &bull; <span style="cursor:pointer;text-decoration:underline;" onclick="deleteEventSeries(\''+ed.recurrence_id+'\')">Slet hele serien</span></div>';
@@ -2267,8 +2297,8 @@ function rEventModal(){
     } else if(!selTeamId){
       html+='<div style="font-size:12px;color:#aaa;">V&#230;lg et hold for at se spillere</div>';
     } else {
-      var regulars=teamMembers.filter(function(m){return !m.is_reserve&&!m.is_trainer;});
-      var reserves=teamMembers.filter(function(m){return m.is_reserve;});
+      var regulars=teamMembers.filter(function(m){return !m.is_reserve&&!m.is_trainer&&getPlayerName(m.player_id)!=='Ukendt';});
+      var reserves=teamMembers.filter(function(m){return m.is_reserve&&getPlayerName(m.player_id)!=='Ukendt';});
       // For match selection: include trainers who are also players (have profile in players table)
       var trainerPlayers=teamMembers.filter(function(m){
         if(!m.is_trainer)return false;
