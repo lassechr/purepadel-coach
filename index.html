@@ -509,7 +509,6 @@ function render() {
     if(dl < 30 && dl >= 0) html += '<span style="font-size:11px;color:'+(dl<7?'#c0392b':'#b7770d')+';">'+dl+' dage tilbage</span>';
   }
   html += '<span class="header-user">'+(p.name||p.email)+'</span>';
-  html += '<button onclick="loadAll()" title="Opdater" style="background:none;border:none;cursor:pointer;padding:4px 6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:20px;line-height:1;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#888\'">&#8635;</button>';
   html += '<button class="header-logout" onclick="doLogout()">Log ud</button>';
   html += '</div></div>';
 
@@ -637,6 +636,7 @@ function rAdmin() {
     html+='</div>';
   }
 
+  if(adminTab==='foreninger'){
   // Visible clubs toggle
   html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:16px;">';
   html+='<div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;">FORENINGER SYNLIGE FOR SPILLER-REGISTRERING</div>';
@@ -654,15 +654,14 @@ function rAdmin() {
   }
   html+='<div style="font-size:11px;color:#aaa;margin-top:8px;">Kun foreninger markeret som synlige vises i spiller-registreringen</div>';
   html+='</div>';
+  }
 
-  // User list
-  if(profiles.length === 0) {
-    html += '<div class="empty">Ingen brugere endnu – opret den første</div>';
-  } else {
-    for(var i=0;i<profiles.length;i++){
-      var p=profiles[i];
-      if(p.role==='superadmin') continue;
-      if(p.role==='player') continue;
+  // User list - opdelt i faner
+  if(adminTab==='foreninger'){
+    var fList=profiles.filter(function(p){return p.role!=='superadmin'&&p.role!=='player';});
+    if(!fList.length){ html+='<div class="empty">Ingen foreninger/trænere endnu</div>'; }
+    else { for(var i=0;i<fList.length;i++){
+      var p=fList[i];
       var days=daysLeft(p.subscription_expires);
       var statusColor=days<0?'#c0392b':(days<30&&days>=0)?'#b7770d':'#3ecf8e';
       var statusLabel=days<0?'Udløbet':(days<30&&days>=0)?days+' dage':'Aktiv';
@@ -670,7 +669,6 @@ function rAdmin() {
       var roleBg=p.subscription_type==='club'?'#e8f0fb':'#f5eef8';
       var roleBorder=p.subscription_type==='club'?'#b3cef0':'#d7bde2';
       var roleLabel=p.subscription_type==='club'?'Forening':'Træner';
-
       html += '<div class="user-row" style="flex-direction:column;align-items:stretch;gap:6px;">';
       html += '<div style="display:flex;align-items:center;gap:8px;">';
       html += '<div class="status-dot" style="background:'+statusColor+';flex-shrink:0;"></div>';
@@ -680,30 +678,50 @@ function rAdmin() {
       html += '<div style="font-size:12px;color:#888;padding-left:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.email||'')+(p.club_name&&p.club_name!=='null'?' · '+esc(p.club_name):'')+'</div>';
       html += '<div style="display:flex;align-items:center;gap:8px;padding-left:16px;flex-wrap:wrap;">';
       html += '<span style="font-size:12px;color:'+statusColor+';font-weight:600;">'+statusLabel+'</span>';
-      html += '<span style="font-size:11px;color:#aaa;">'+( p.subscription_expires ? formatDate(p.subscription_expires) : 'Ingen dato')+'</span>';
+      html += '<span style="font-size:11px;color:#aaa;">'+(p.subscription_expires?formatDate(p.subscription_expires):'Ingen dato')+'</span>';
       html += '<div style="margin-left:auto;display:flex;gap:6px;">';
-      html += '<button class="btn btn-light btn-sm" onclick="editUser(\''+p.id+'\')">&#9881;</button>';
-      html += '<button class="btn btn-light btn-sm" onclick="renewUser(\''+p.id+'\')">Forny</button>';
-      html += '<button class="btn btn-red btn-sm" onclick="deleteUser(\''+p.id+'\')">Slet</button>';
+      html += '<button class="btn btn-light btn-sm" onclick="editUser(\''+p.id+'\')">⚙︎</button>';
+      html += '<button class="btn btn-light btn-sm" onclick="renewUser(\''+p.id+'\')">' + 'Forny</button>';
+      html += '<button class="btn btn-red btn-sm" onclick="deleteUser(\''+p.id+'\')">' + 'Slet</button>';
+      html += '</div></div></div>';
+    }}
+  } else {
+    var sList=profiles.filter(function(p){return p.role==='player';});
+    if(!sList.length){ html+='<div class="empty">Ingen spillere endnu</div>'; }
+    else { for(var si=0;si<sList.length;si++){
+      var sp=sList[si];
+      var spColor=sp.status==='active'?'#3ecf8e':'#b7770d';
+      var spLabel=sp.status==='active'?'Aktiv':'Afventer';
+      var hasPush=sp.notify_push!==false;
+      html += '<div class="user-row" style="flex-direction:column;align-items:stretch;gap:6px;">';
+      html += '<div style="display:flex;align-items:center;gap:8px;">';
+      html += '<div class="status-dot" style="background:'+spColor+';flex-shrink:0;"></div>';
+      html += '<span style="font-size:14px;font-weight:600;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(sp.name||sp.email||'Ingen navn')+'</span>';
+      html += '<span class="user-role" style="color:#1e6f3e;background:#eafaf1;border-color:#a9dfbf;flex-shrink:0;">Spiller</span>';
       html += '</div>';
-      html += '</div>';
-      html += '</div>';
-    }
+      html += '<div style="font-size:12px;color:#888;padding-left:16px;">'+(sp.email?esc(sp.email):'<span style="color:#e67e22;">Ingen email</span>')+'</div>';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding-left:16px;flex-wrap:wrap;">';
+      html += '<span style="font-size:12px;color:'+spColor+';font-weight:600;">'+spLabel+'</span>';
+      html += '<span style="font-size:11px;color:'+(hasPush?'#1e8449':'#aaa')+';">'+(hasPush?'Push aktiv':'Push slået fra')+'</span>';
+      html += '<div style="margin-left:auto;display:flex;gap:6px;">';
+      html += '<button class="btn btn-red btn-sm" onclick="deleteUser(\''+sp.id+'\')">' + 'Slet</button>';
+      html += '</div></div></div>';
+    }}
   }
   // Push test sektion
-  var allPlayers=profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
-  var allTrainers=profiles.filter(function(p){return p.role==='trainer'||p.role==='club_admin';});
-  var pushTargets=allPlayers.concat(allTrainers);
-  html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:16px;">';
+  var allPlayers2=profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
+  var allTrainers2=profiles.filter(function(p){return p.role==='trainer'||p.role==='club_admin';});
+  var pushTargets=allPlayers2.concat(allTrainers2);
+  html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:16px;margin-top:16px;">';
   html+='<div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;">TEST PUSH-NOTIFIKATION</div>';
   html+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
   html+='<select id="pushTestTarget" style="flex:1;min-width:180px;padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;background:#fff;">';
   html+='<option value="">Vælg modtager...</option>';
   for(var pti=0;pti<pushTargets.length;pti++){var pt=pushTargets[pti];html+='<option value="'+pt.id+'">'+esc(pt.name||pt.email)+' ('+(pt.role==='player'?'Spiller':'Træner/Forening')+')</option>';}
   html+='</select>';
-  html+='<button class="btn btn-dark btn-sm" onclick="sendTestPush()">Send test 🔔</button>';
+  html+='<button class="btn btn-dark btn-sm" onclick="sendTestPush()">Send test</button>';
   html+='</div>';
-  html+='<div style="font-size:11px;color:#aaa;margin-top:8px;">Sender en test-notifikation med deep link til den valgte bruger</div>';
+  html+='<div style="font-size:11px;color:#aaa;margin-top:8px;">Sender push med deep link til næste begivenhed</div>';
   html+='</div>';
   return html;
 }
@@ -1482,7 +1500,7 @@ function rHold(){
     html+='<div style="background:#f9f9f9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
     html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:700;color:#111;">'+esc(team.name)+'</div>';
-    html+='<div style="font-size:12px;color:'+(upcoming.length>0?'#111':'#888')+';font-weight:'+(upcoming.length>0?'600':'400')+';margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
+    html+='<div style="font-size:12px;color:#888;margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
     html+='</div>';
     html+='<div style="display:flex;gap:6px;align-items:center;">';
     html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Tr&#230;ning</button>';
@@ -1618,7 +1636,7 @@ function rHold(){
         html+='<div style="font-size:14px;font-weight:600;color:#111;">'+esc(sub.name)+'</div>';
         var divTxt=sub.division?'<span style="font-size:11px;background:#f0f0f0;color:#666;border-radius:4px;padding:1px 6px;margin-left:6px;">'+esc(sub.division)+'</span>':'';
         html+=divTxt;
-        html+='<div style="font-size:11px;color:'+(subEvents.length>0?'#111':'#aaa')+';font-weight:'+(subEvents.length>0?'600':'400')+';margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
+        html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
         html+='</div>';
         html+='<div style="display:flex;gap:6px;">';
         html+='<button class="btn btn-dark btn-sm" style="font-size:11px;" onclick="openNewEvent(\''+sub.id+'\',\'match\')">+ Kamp</button>';
@@ -2003,7 +2021,7 @@ function rEventModal(){
         if(!alreadyIn)teamMembers.push(parentMembers[pmi]);
       }
     }
-
+    html+='<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Debug: team='+selTeamId.substring(0,8)+'... members='+teamMembers.length+(parentTeamId?' (inkl. fra tr&#230;ningshold)':'')+'</div>';
     if(!teamMembers.length&&selTeamId){
       html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Ingen spillere på holdet endnu</div>';
     } else if(!selTeamId){
@@ -3674,12 +3692,11 @@ window.sendTestPush=function(){
   var sel=document.getElementById('pushTestTarget');
   if(!sel||!sel.value){alert('Vælg en modtager først');return;}
   var profileId=sel.value;
-  // Find første kommende begivenhed til deep link test
   var now=new Date();
   var upcoming=STATE.events.filter(function(e){return new Date(e.date)>=now;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
   var testEventId=upcoming.length?upcoming[0].id:null;
-  sendPushToPlayer(profileId,'🎾 Test notifikation',testEventId?'Tryk for at åbne begivenheden: '+upcoming[0].title:'PurePadel Coach test push 🔔',testEventId);
-  alert('Test-notifikation sendt!'+(testEventId?' Med link til: '+upcoming[0].title:''));
+  sendPushToPlayer(profileId,'Test notifikation',testEventId?'Tryk for at åbne: '+upcoming[0].title:'PurePadel Coach test push',testEventId);
+  alert('Test sendt!'+(testEventId?' Med deep link til: '+upcoming[0].title:''));
 };
 
 function sendPushToPlayer(profileId,title,body,eventId){
