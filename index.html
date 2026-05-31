@@ -669,7 +669,14 @@ function rAdmin() {
 
   // User list - opdelt i faner
   if(adminTab==='foreninger'){
-    var fList=profiles.filter(function(p){return p.role!=='superadmin'&&p.role!=='player';});
+    // Kun 'rigtige' trænere/foreninger - ikke spiller-trænere (som har players-post)
+    var playerProfileIds2=STATE.players.map(function(pl){return pl.profile_id;}).filter(Boolean);
+    var fList=profiles.filter(function(p){
+      if(p.role==='superadmin'||p.role==='player') return false;
+      // Træner der også er spiller på et hold - hører under spillere-fanen
+      if(p.role==='trainer'&&playerProfileIds2.indexOf(p.id)>=0) return false;
+      return true;
+    });
     if(!fList.length){ html+='<div class="empty">Ingen foreninger/trænere endnu</div>'; }
     else { for(var i=0;i<fList.length;i++){
       var p=fList[i];
@@ -3482,7 +3489,7 @@ window.assignTrainerToTeam=function(profileId){
   }
   done.then(function(){
     // Sæt også rollen til trainer hvis den er player
-    return sbPatch('profiles',{role:'trainer',subscription_type:'trainer',subscription_expires:'2099-12-31',status:null},'id=eq.'+profileId);
+    return sbPatch('profiles',{role:'trainer'},'id=eq.'+profileId);
   }).then(function(){
     return loadTeamMembersCache();
   }).then(function(){
@@ -3496,7 +3503,7 @@ window.assignTrainerToTeam=function(profileId){
 
 window.promoteToTrainer=function(profileId){
   if(!confirm('Gør denne spiller til træner? De mister spiller-adgang og får træner-adgang i stedet.'))return;
-  sbPatch('profiles',{role:'trainer',subscription_type:'trainer',subscription_expires:'2099-12-31',status:null},'id=eq.'+profileId)
+  sbPatch('profiles',{role:'trainer'},'id=eq.'+profileId)
   .then(function(){
     closeModal();
     loadAllProfiles().then(render);
