@@ -603,8 +603,13 @@ function rAdmin() {
   var expired = trainersAndClubs.filter(function(p){return !p.subscription_expires||daysLeft(p.subscription_expires)<0;});
   var players = profiles.filter(function(p){return p.role==='player'&&p.status==='active';});
 
+  var adminTab=STATE.adminSubTab||'foreninger';
   var html = '<div class="sec-head"><div class="sec-title">Admin Board</div>'
     +'<button class="btn btn-dark" onclick="openModal(\'add_user\')">+ Opret bruger</button></div>';
+  html+='<div style="display:flex;gap:8px;margin-bottom:16px;">';
+  html+='<button onclick="STATE.adminSubTab=\'foreninger\';render()" style="padding:7px 16px;border-radius:8px;border:1.5px solid '+(adminTab==='foreninger'?'#111':'#ddd')+';background:'+(adminTab==='foreninger'?'#111':'#fff')+';color:'+(adminTab==='foreninger'?'#fff':'#666')+';font-size:13px;font-weight:600;cursor:pointer;">Foreninger &amp; Trænere</button>';
+  html+='<button onclick="STATE.adminSubTab=\'spillere\';render()" style="padding:7px 16px;border-radius:8px;border:1.5px solid '+(adminTab==='spillere'?'#111':'#ddd')+';background:'+(adminTab==='spillere'?'#111':'#fff')+';color:'+(adminTab==='spillere'?'#fff':'#666')+';font-size:13px;font-weight:600;cursor:pointer;">Spillere ('+profiles.filter(function(p){return p.role==='player';}).length+')</button>';
+  html+='</div>';
 
   // Stats
   html += '<div class="stat-grid">';
