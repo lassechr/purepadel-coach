@@ -4128,7 +4128,12 @@ window.doImp=function(){
   });
   Promise.all(promises.concat(emailPromises)).then(function(){
     STATE.irows=[];STATE.showImp=false;
-    loadPlayers().then(function(){render();setTimeout(function(){var el=document.getElementById('impOk');if(el){el.style.display='block';el.textContent='\u2713 '+ok.length+' spillere importeret'+(withEmail.length?' ('+withEmail.length+' med login, password: '+defaultPw+')':'')+'!';}},50);});
+    loadAllProfiles().then(function(){return loadPlayers();}).then(function(){
+      render();
+      var msg='\u2713 '+ok.length+' spillere importeret!';
+      if(withEmail.length)msg+='\n\n'+withEmail.length+' fik login oprettet.\nPassword: '+defaultPw;
+      alert(msg);
+    });
   });
 };
 
