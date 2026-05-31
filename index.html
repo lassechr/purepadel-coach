@@ -1788,13 +1788,14 @@ function rHold(){
     var typeLabel=team.type==='dame'?'Damehold':team.type==='mix'?'Mixhold':'Herrehold';
     var isTeamOpen=STATE.openTeam===team.id;
 
-    html+='<div style="border:1.5px solid #e5e5e5;border-radius:12px;margin-bottom:16px;overflow:hidden;">';
+    var hasUpcoming=upcoming.length>0;
+    html+='<div style="border:1.5px solid '+(hasUpcoming?'#2ecc71':'#e5e5e5')+';border-radius:12px;margin-bottom:16px;overflow:hidden;">';
 
     // Training team header
-    html+='<div style="background:#f9f9f9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<div style="background:'+(hasUpcoming?'#f0faf4':'#f9f9f9')+';padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
     html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:700;color:#111;">'+esc(team.name)+'</div>';
-    html+='<div style="font-size:12px;color:#888;margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
+    html+='<div style="font-size:12px;color:'+(hasUpcoming?'#1e8449':'#888')+';margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
     html+='</div>';
     html+='<div style="display:flex;gap:6px;align-items:center;">';
     html+='<button class="btn btn-dark btn-sm" onclick="openNewEvent(\''+team.id+'\')">+ Tr&#230;ning</button>';
@@ -1924,13 +1925,14 @@ function rHold(){
       for(var si=0;si<subTeams.length;si++){
         var sub=subTeams[si];
         var subEvents=STATE.events.filter(function(e){return e.team_id===sub.id;}).filter(function(e){return new Date(e.date)>=now;});
-        html+='<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;overflow:hidden;">';
-        html+='<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;background:#fff;">';
+        var subHasUpcoming=subEvents.length>0;
+        html+='<div style="border:1px solid '+(subHasUpcoming?'#2ecc71':'#e0e0e0')+';border-radius:8px;margin-bottom:8px;overflow:hidden;">';
+        html+='<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;background:'+(subHasUpcoming?'#f0faf4':'#fff')+'">';
         html+='<div>';
         html+='<div style="font-size:14px;font-weight:600;color:#111;">'+esc(sub.name)+'</div>';
         var divTxt=sub.division?'<span style="font-size:11px;background:#f0f0f0;color:#666;border-radius:4px;padding:1px 6px;margin-left:6px;">'+esc(sub.division)+'</span>':'';
         html+=divTxt;
-        html+='<div style="font-size:11px;color:#aaa;margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
+        html+='<div style="font-size:11px;color:'+(subHasUpcoming?'#1e8449':'#aaa')+';margin-top:2px;">'+subEvents.length+' kommende kampe</div>';
         html+='</div>';
         html+='<div style="display:flex;gap:6px;">';
         html+='<button class="btn btn-dark btn-sm" style="font-size:11px;" onclick="openNewEvent(\''+sub.id+'\',\'match\')">+ Kamp</button>';
