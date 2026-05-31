@@ -3413,7 +3413,22 @@ function loadPlayerData(){
     if(!Array.isArray(members)||!members.length){
       STATE.playerTeams=[];STATE.playerTeamMemberships=[];
       STATE.playerEvents=[];STATE.playerResponses=[];
-      return Promise.resolve();
+      // Hent stadig reserve-invitationer selv uden holdmedlemskab
+      return sbGet('event_responses','player_id=eq.'+pid+'&response=is.null').then(function(invitations){
+        if(!Array.isArray(invitations)||!invitations.length)return Promise.resolve();
+        var invitedEvIds=invitations.map(function(r){return r.event_id;});
+        return sbGet('events','id=in.('+invitedEvIds.join(',')+')&order=date').then(function(invEvs){
+          if(Array.isArray(invEvs)){
+            invEvs.forEach(function(e){e._isReserveInvite=true;});
+            STATE.playerEvents=invEvs;
+          }
+          var evIds=STATE.playerEvents.map(function(e){return e.id;});
+          if(!evIds.length)return Promise.resolve();
+          return sbGet('event_responses','event_id=in.('+evIds.join(',')+')'+'&player_id=eq.'+pid).then(function(resp){
+            STATE.playerResponses=Array.isArray(resp)?resp:[];
+          });
+        });
+      });
     }
     STATE.playerTeamMemberships=members;
     STATE.playerCaptainTeamIds=members.filter(function(m){return m.is_captain;}).map(function(m){return m.team_id;});
@@ -3423,9 +3438,10 @@ function loadPlayerData(){
     var regularTeamIds=regularMemberships.map(function(m){return m.team_id;});
     return sbGet('teams','id=in.('+(allMemberTeamIds.length?allMemberTeamIds.join(','):'00000000-0000-0000-0000-000000000000')+')').then(function(teams){
       STATE.playerTeams=Array.isArray(teams)?teams:[];
-      // Load events from regular teams
-      var evPromise=regularTeamIds.length
-        ?sbGet('events','team_id=in.('+regularTeamIds.join(',')+')&order=date')
+      // Load events for ALL teams (fast + reserve) not just regular
+      var allEvTeamIds=allMemberTeamIds.length?allMemberTeamIds:regularTeamIds;
+      var evPromise=allEvTeamIds.length
+        ?sbGet('events','team_id=in.('+allEvTeamIds.join(',')+')&order=date')
         :Promise.resolve([]);
       return evPromise;
     }).then(function(events){
@@ -4363,7 +4379,16 @@ function sendEmailToPlayer(profileId,subject,text,html){
 }
 
 function notifyPlayer(profileId,title,body,emailSubject,emailHtml,eventId){
-  var pr=(STATE.allProfiles||[]).filter(function(p){return p.id===profileId;})[0]||{};
+  // Søg i allProfiles, players og STATE.profile selv
+  var pr=(STATE.allProfiles||[]).filter(function(p){return p.id===profileId;})[0]||null;
+  // Fallback: tjek om det er den indloggede bruger selv
+  if(!pr&&STATE.profile&&STATE.profile.id===profileId)pr=STATE.profile;
+  // Fallback: find via players
+  if(!pr){
+    var pl=(STATE.players||[]).filter(function(p){return p.profile_id===profileId;})[0]||null;
+    if(pl)pr={id:profileId,email:pl.email||null,notify_push:true,notify_email:true};
+  }
+  pr=pr||{};
   var hasPush=pr.notify_push!==false;
   var hasEmail=pr.notify_email!==false&&!!pr.email;
   if(hasPush)sendPushToPlayer(profileId,title,body,eventId);
