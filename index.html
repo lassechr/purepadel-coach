@@ -2215,8 +2215,8 @@ window.addPlayerToTeam=function(sel,playerId){
     if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    alert('Denne spiller har intet login endnu.\nBed spilleren om at oprette sig p\u00e5 coach.purepadel.dk f\u00f8rst.');
-    return;
+    // Ingen login endnu - brug players.id som player_id midlertidigt
+    profileId=playerId;
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId,is_reserve:isReserve}).then(function(res){
     if(res&&res.code==='23505'){alert('Spilleren er allerede p\u00e5 dette hold.');return;}
@@ -2597,8 +2597,7 @@ window.addTeamMember=function(teamId){
     if(STATE.players[i].id===playerId){profileId=STATE.players[i].profile_id;break;}
   }
   if(!profileId){
-    alert('Denne spiller har intet login endnu.\nBed spilleren om at oprette sig p\u00e5 coach.purepadel.dk f\u00f8rst.');
-    return;
+    profileId=playerId; // Ingen login - brug players.id direkte
   }
   sbPost('team_members',{team_id:teamId,player_id:profileId}).then(function(res){
     if(res&&res.code==='23505'){alert('Spilleren er allerede på dette hold.');return;}
