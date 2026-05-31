@@ -1005,17 +1005,23 @@ function rPlayers() {
           html+='</span>';
         }
       }
-      // Vis traenerhold badges
+      // Vis traenerhold badges - saml alle hold
       if(playerProfileId&&STATE.teamMembersCache){
+        var trainerBadges=[];
         for(var ttk2 in STATE.teamMembersCache){
           var ttms2=STATE.teamMembersCache[ttk2];
           for(var tti2=0;tti2<ttms2.length;tti2++){
             if(ttms2[tti2].player_id===playerProfileId&&ttms2[tti2].is_trainer){
               var ttrTeam=STATE.teams.filter(function(t){return t.id===ttk2;})[0];
-              if(ttrTeam)html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;font-weight:600;">Træner: '+esc(ttrTeam.name)+'</span>';
-              break;
+              if(ttrTeam)trainerBadges.push({name:ttrTeam.name,memberId:ttms2[tti2].id,teamId:ttk2});
             }
           }
+        }
+        for(var tbi=0;tbi<trainerBadges.length;tbi++){
+          var tb=trainerBadges[tbi];
+          html+='<span style="font-size:11px;background:#f0f7ff;color:#1a6fb5;border:1px solid #b3d4f5;border-radius:4px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;font-weight:600;">Træner: '+esc(tb.name);
+          if(canManage)html+='<span onclick="removeTrainerFromTeam(\''+tb.memberId+'\',\''+tb.teamId+'\')" style="cursor:pointer;color:#999;font-size:12px;margin-left:2px;">&#10005;</span>';
+          html+='</span>';
         }
       }
       // Add to team dropdown
@@ -3515,6 +3521,35 @@ window.savePlayer=function(){
     sbPost('players',{club_id:cid,name:n.trim(),level:Math.min(5,Math.max(1,parseInt((document.getElementById('pL')||{}).value)||3)),side:(document.getElementById('pS')||{}).value||'begge',notes:((document.getElementById('pO')||{}).value||'').trim()})
     .then(function(){closeModal();loadPlayers().then(render);});
   }
+};
+
+window.removeTrainerFromTeam=function(memberId,teamId){
+  if(!confirm('Fjern trænerrolle fra dette hold?'))return;
+  // Sæt is_trainer=false - beholder spillermedlemskabet
+  sbPatch('team_members',{is_trainer:false},'id=eq.'+memberId).then(function(){
+    // Tjek om personen stadig er træner på andre hold
+    return loadTeamMembersCache();
+  }).then(function(){
+    // Find om personen er træner på andre hold
+    var profileId=null;
+    var tms=STATE.teamMembersCache[teamId]||[];
+    // Find profil-id via alle holds memberships
+    var stillTrainer=false;
+    for(var tk in STATE.teamMembersCache){
+      var tmlist=STATE.teamMembersCache[tk];
+      for(var tmi=0;tmi<tmlist.length;tmi++){
+        if(tmlist[tmi].id===memberId){profileId=tmlist[tmi].player_id;}
+        if(profileId&&tmlist[tmi].player_id===profileId&&tmlist[tmi].is_trainer){stillTrainer=true;}
+      }
+    }
+    // Hvis ikke længere træner på nogen hold - skift rolle tilbage til player
+    if(profileId&&!stillTrainer){
+      return sbPatch('profiles',{role:'player'},'id=eq.'+profileId);
+    }
+    return Promise.resolve();
+  }).then(function(){
+    loadAllProfiles().then(render);
+  });
 };
 
 window.assignTrainerToTeam=function(profileId){
