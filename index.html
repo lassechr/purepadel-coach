@@ -228,7 +228,8 @@ var STATE = {
   teamFilter: 'all',
   editUserProfile: null,
   selectedPlayers: [],
-  impClubId: null
+  impClubId: null,
+  impDefaultPw: 'Padel2024'
 };
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -943,6 +944,11 @@ function rPlayers() {
     }
     html+='<div style="font-size:12px;color:#888;margin-bottom:10px;">Kolonner: <strong>Navn</strong> | <strong>Email</strong> (valgfri) | <strong>Niveau</strong> (1-5) | <strong>Side</strong> | <strong>Noter</strong></div>';
     html+='<div style="font-size:11px;color:#aaa;margin-bottom:8px;">Har en spiller email tilf\u00f8jes login automatisk og de modtager velkomstmail.</div>';
+    html+='<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+    html+='<label style="font-size:12px;font-weight:600;color:#555;white-space:nowrap;">Standard password:</label>';
+    html+='<input class="finput" id="impDefaultPw" type="text" value="'+(STATE.impDefaultPw||'Padel2024')+'" style="max-width:160px;margin-bottom:0;" oninput="STATE.impDefaultPw=this.value" placeholder="Min. 6 tegn">';
+    html+='<span style="font-size:11px;color:#aaa;">Bruges til alle logins i denne import</span>';
+    html+='</div>';
     html+='<textarea class="paste-area" id="ppPaste" oninput="parseImp()" placeholder="Kopier fra Excel og indsæt her..."></textarea>';
     if(STATE.irows.length){
       html+='<div style="margin-top:10px;">';
@@ -4094,8 +4100,10 @@ window.doImp=function(){
     promises.push(sbPost('players',{club_id:cid,name:withoutEmail[i].name,level:withoutEmail[i].level,side:withoutEmail[i].side,notes:withoutEmail[i].notes}));
   }
   // Players with email - create auth + profile + players
+  var defaultPw=(document.getElementById('impDefaultPw')||{}).value||'Padel2024';
+  if(defaultPw.length<6)defaultPw='Padel2024';
   var emailPromises=withEmail.map(function(p){
-    var pw=Math.random().toString(36).substr(2,8);
+    var pw=defaultPw;
     return new Promise(function(resolve){
       createAuthUser(p.email,pw,p.name,'player',cid,null,function(err,data){
         if(err){
@@ -4120,7 +4128,7 @@ window.doImp=function(){
   });
   Promise.all(promises.concat(emailPromises)).then(function(){
     STATE.irows=[];STATE.showImp=false;
-    loadPlayers().then(function(){render();setTimeout(function(){var el=document.getElementById('impOk');if(el){el.style.display='block';el.textContent='\u2713 '+ok.length+' spillere importeret'+(withEmail.length?' ('+withEmail.length+' med login)':'')+'!';}},50);});
+    loadPlayers().then(function(){render();setTimeout(function(){var el=document.getElementById('impOk');if(el){el.style.display='block';el.textContent='\u2713 '+ok.length+' spillere importeret'+(withEmail.length?' ('+withEmail.length+' med login, password: '+defaultPw+')':'')+'!';}},50);});
   });
 };
 
