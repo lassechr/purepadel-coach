@@ -3853,10 +3853,26 @@ window.saveEditPlayer=function(){
 
 window.delPlayer=function(id){
   if(!confirm('Slet spiller?'))return;
+  // Find profile_id så vi kan slette profil og auth-bruger også
+  var pl=(STATE.players||[]).filter(function(p){return p.id===id;})[0]||{};
+  var profileId=pl.profile_id||null;
   sbDelete('players','id=eq.'+id).then(function(){
     STATE.att=STATE.att.filter(function(a){return a!==id;});
     STATE.selectedPlayers=STATE.selectedPlayers.filter(function(s){return s!==id;});
-    closeModal();loadPlayers().then(render);
+    if(profileId){
+      sbDelete('profiles','id=eq.'+profileId).then(function(){
+        // Slet auth-bruger via edge function
+        var tok=STATE.session?STATE.session.access_token:null;
+        var xhr=new XMLHttpRequest();
+        xhr.open('POST',SB_URL+'/functions/v1/delete-user',true);
+        xhr.setRequestHeader('Content-Type','application/json');
+        xhr.setRequestHeader('Authorization','Bearer '+tok);
+        xhr.setRequestHeader('apikey',SB_KEY);
+        xhr.onload=function(){console.log('Auth slettet:',xhr.status,xhr.responseText);};
+        xhr.send(JSON.stringify({userId:profileId}));
+      });
+    }
+    closeModal();loadAllProfiles().then(function(){return loadPlayers();}).then(render);
   });
 };
 
@@ -3884,11 +3900,27 @@ window.deleteSelectedPlayers=function(){
   var ids=STATE.selectedPlayers.slice();
   if(!ids.length)return;
   if(!confirm('Slet '+ids.length+' spiller(e)? Dette kan ikke fortrydes.'))return;
-  var dels=ids.map(function(id){return sbDelete('players','id=eq.'+id);});
+  var tok=STATE.session?STATE.session.access_token:null;
+  var dels=ids.map(function(id){
+    var pl=(STATE.players||[]).filter(function(p){return p.id===id;})[0]||{};
+    var profileId=pl.profile_id||null;
+    return sbDelete('players','id=eq.'+id).then(function(){
+      if(profileId){
+        sbDelete('profiles','id=eq.'+profileId).then(function(){
+          var xhr=new XMLHttpRequest();
+          xhr.open('POST',SB_URL+'/functions/v1/delete-user',true);
+          xhr.setRequestHeader('Content-Type','application/json');
+          xhr.setRequestHeader('Authorization','Bearer '+tok);
+          xhr.setRequestHeader('apikey',SB_KEY);
+          xhr.send(JSON.stringify({userId:profileId}));
+        });
+      }
+    });
+  });
   Promise.all(dels).then(function(){
     STATE.att=STATE.att.filter(function(a){return ids.indexOf(a)<0;});
     STATE.selectedPlayers=[];
-    loadPlayers().then(render);
+    loadAllProfiles().then(function(){return loadPlayers();}).then(render);
   });
 };
 
@@ -4359,22 +4391,31 @@ window.renewUser=function(id){
 };
 
 window.deleteUser=function(id){
+  console.log('deleteUser kaldt med id:', id);
+  if(!id){alert('Fejl: intet bruger-id');return;}
   if(!confirm('Slet bruger permanent? Handlingen kan ikke fortrydes.'))return;
   var tok=STATE.session?STATE.session.access_token:null;
-  var xhr=new XMLHttpRequest();
-  xhr.open('POST',SB_URL+'/functions/v1/delete-user',true);
-  xhr.setRequestHeader('Content-Type','application/json');
-  xhr.setRequestHeader('Authorization','Bearer '+tok);
-  xhr.setRequestHeader('apikey',SB_KEY);
-  xhr.onload=function(){
-    if(xhr.status===200){
+  if(!tok){alert('Ikke logget ind');return;}
+  // Slet fra profiles og players direkte (ingen edge function nødvendig)
+  sbDelete('players','profile_id=eq.'+id).then(function(){
+    return sbDelete('profiles','id=eq.'+id);
+  }).then(function(){
+    // Forsøg også at slette auth-bruger via edge function
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',SB_URL+'/functions/v1/delete-user',true);
+    xhr.setRequestHeader('Content-Type','application/json');
+    xhr.setRequestHeader('Authorization','Bearer '+tok);
+    xhr.setRequestHeader('apikey',SB_KEY);
+    xhr.onload=function(){
+      console.log('delete-user status:', xhr.status, xhr.responseText);
       loadAllProfiles().then(function(){return loadPlayers();}).then(render);
-    } else {
-      alert('Fejl ved sletning: '+xhr.responseText);
-    }
-  };
-  xhr.onerror=function(){alert('Netværksfejl ved sletning');};
-  xhr.send(JSON.stringify({userId:id}));
+    };
+    xhr.onerror=function(){
+      console.warn('Edge function fejlede, men profil er slettet');
+      loadAllProfiles().then(function(){return loadPlayers();}).then(render);
+    };
+    xhr.send(JSON.stringify({userId:id}));
+  });
 };
 
 window.makeMasterDrill=function(id){
