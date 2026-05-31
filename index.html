@@ -613,6 +613,7 @@ function render() {
   else if(STATE.modal==='add_user') html += rAddUserModal();
   else if(STATE.modal==='edit_team') html += rTeamModal();
   else if(STATE.modal==='edit_event') html += rEventModal();
+  else if(STATE.modal==='assign_team') html += rAssignTeamModal();
   else if(STATE.modal==='edit_user') html += rEditUserModal();
   else if(STATE.modal==='add_login') html += rAddLoginModal();
 
@@ -997,6 +998,7 @@ function rPlayers() {
     html+='<input type="checkbox" '+(allSelected?'checked':'')+' onchange="toggleSelectAllPlayers(this.checked)" style="width:16px;height:16px;cursor:pointer;"> Vælg alle</label>';
     if(selCount>0){
       html+='<span style="font-size:13px;color:#888;">'+selCount+' valgt</span>';
+      html+='<button class="btn btn-dark btn-sm" onclick="assignSelectedToTeam()">Tildel hold ('+selCount+')</button>';
       html+='<button class="btn btn-red btn-sm" onclick="deleteSelectedPlayers()">Slet valgte ('+selCount+')</button>';
     }
     html+='</div>';
@@ -4151,6 +4153,63 @@ window.deleteSelectedPlayers=function(){
     STATE.att=STATE.att.filter(function(a){return ids.indexOf(a)<0;});
     STATE.selectedPlayers=[];
     loadAllProfiles().then(function(){return loadPlayers();}).then(render);
+  });
+};
+
+window.assignSelectedToTeam=function(){
+  if(!STATE.selectedPlayers.length)return;
+  STATE.modal='assign_team';render();
+};
+
+function rAssignTeamModal(){
+  var teams=STATE.teams||[];
+  var cid=clubId();
+  var clubTeams=teams.filter(function(t){return t.club_id===cid;});
+  var html='<div class="modal-backdrop" onclick="closeModal()">';
+  html+='<div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px;">';
+  html+='<div style="font-size:16px;font-weight:700;margin-bottom:16px;">Tildel hold ('+STATE.selectedPlayers.length+' spillere)</div>';
+  if(!clubTeams.length){
+    html+='<div style="font-size:13px;color:#aaa;">Ingen hold oprettet endnu</div>';
+  } else {
+    html+='<div style="font-size:13px;color:#555;margin-bottom:10px;">Vælg hold og rolle:</div>';
+    html+='<select id="atTeamId" class="finput" style="margin-bottom:10px;">';
+    for(var i=0;i<clubTeams.length;i++){
+      html+='<option value="'+clubTeams[i].id+'">'+esc(clubTeams[i].name)+'</option>';
+    }
+    html+='</select>';
+    html+='<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">';
+    html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="atRole" value="fast" checked> Fast spiller</label>';
+    html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="atRole" value="reserve"> Reserve</label>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:8px;">';
+    html+='<button class="btn btn-dark" style="flex:1;" onclick="confirmAssignTeam()">Tildel</button>';
+    html+='<button class="btn btn-light" onclick="closeModal()">Annuller</button>';
+    html+='</div>';
+  }
+  html+='</div></div>';
+  return html;
+}
+
+window.confirmAssignTeam=function(){
+  var teamId=(document.getElementById('atTeamId')||{}).value;
+  if(!teamId)return;
+  var roleEl=document.querySelector('input[name="atRole"]:checked');
+  var isReserve=roleEl&&roleEl.value==='reserve';
+  var ids=STATE.selectedPlayers.slice();
+  // For each selected player, look up their profile_id to use as player_id in team_members
+  var tasks=ids.map(function(playerId){
+    var pl=(STATE.players||[]).filter(function(p){return p.id===playerId;})[0]||null;
+    var pid=pl&&pl.profile_id?pl.profile_id:playerId;
+    // Check if already member
+    var existing=(STATE.teamMembersCache&&STATE.teamMembersCache[teamId])||[];
+    var alreadyMember=existing.some(function(m){return m.player_id===pid;});
+    if(alreadyMember)return Promise.resolve();
+    return sbPost('team_members',{team_id:teamId,player_id:pid,is_reserve:isReserve,is_captain:false,is_trainer:false});
+  });
+  Promise.all(tasks).then(function(){
+    STATE.selectedPlayers=[];
+    closeModal();
+    loadTeamMembersCache().then(render);
   });
 };
 
