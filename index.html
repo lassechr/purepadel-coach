@@ -2069,7 +2069,7 @@ function rEventRow(ev,team,isPast){
       html+='<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#eafaf1;color:#1e8449;">&#10003; Tilmeldt</span>';
     } else if(myRowResp&&myRowResp.response==='no'){
       html+='<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#fdecea;color:#c0392b;">&#10007; Frameldt</span>';
-    } else if(myRowResp&&myRowResp.response===null){
+    } else {
       html+='<button class="btn btn-dark btn-sm" style="font-size:11px;padding:2px 8px;" onclick="event.stopPropagation();STATE.trainerRespondingTo=\''+ev.id+'\';STATE.openEvent=\''+ev.id+'\';render()">Svar</button>';
     }
   }
