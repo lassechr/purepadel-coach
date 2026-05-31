@@ -3880,30 +3880,18 @@ window.sendTestPush=function(){
 };
 
 function sendPushToPlayer(profileId,title,body,eventId,callback){
-  sbGet('profiles','id=eq.'+profileId).then(function(data){
-    if(!Array.isArray(data)||!data.length){if(callback)callback(false,'Profil ikke fundet');return;}
-    var prof=data[0];
-    if(prof.notify_push===false){if(callback)callback(false,'Push slaaet fra for denne bruger');return;}
-    sbGet('push_subscriptions','player_id=eq.'+profileId).then(function(subs){
-      if(!Array.isArray(subs)||!subs.length){
-        if(callback)callback(false,'Ingen push-abonnement fundet - spilleren skal aabne appen fra hjemskaerm i Safari og sige ja til notifikationer');
-        else alert('Ingen push-abonnement fundet');
-        return;
-      }
-      var tok=STATE.session?STATE.session.access_token:null;
-      var xhr=new XMLHttpRequest();
-      xhr.open('POST',SB_URL+'/functions/v1/send-push',true);
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.setRequestHeader('Authorization','Bearer '+tok);
-      xhr.setRequestHeader('apikey',SB_KEY);
-      xhr.onload=function(){
-        if(xhr.status===200){if(callback)callback(true,null);}
-        else{if(callback)callback(false,xhr.status+': '+xhr.responseText);else alert('Push fejlede: '+xhr.responseText);}
-      };
-      xhr.onerror=function(){if(callback)callback(false,'Netvaerksfejl');else alert('Netvaerksfejl');}
-      xhr.send(JSON.stringify({player_id:profileId,title:title,body:body,eventId:eventId||null,url:'https://coach.purepadel.dk'+(eventId?'?event='+eventId:'')}));
-    });
-  });
+  var tok=STATE.session?STATE.session.access_token:null;
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',SB_URL+'/functions/v1/send-push',true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.setRequestHeader('Authorization','Bearer '+tok);
+  xhr.setRequestHeader('apikey',SB_KEY);
+  xhr.onload=function(){
+    if(xhr.status===200){if(callback)callback(true,null);}
+    else{if(callback)callback(false,xhr.status+': '+xhr.responseText);else alert('Push fejlede: '+xhr.responseText);}
+  };
+  xhr.onerror=function(){if(callback)callback(false,'Netvaerksfejl');else alert('Netvaerksfejl');}
+  xhr.send(JSON.stringify({player_id:profileId,title:title,body:body,eventId:eventId||null,url:'https://coach.purepadel.dk'+(eventId?'?event='+eventId:'')}));
 }
 
 function sendEmailToPlayer(profileId,subject,text,html){
