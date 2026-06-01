@@ -2129,11 +2129,31 @@ function rEventDetail(ev,responses){
   // Actions
   html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">';
   html+='<button class="btn btn-dark btn-sm" onclick="sendReminder(\''+ev.id+'\')">Send p&#229;mindelse til ikke-svar</button>';
-  html+='<button class="btn btn-light btn-sm" onclick="showReserveInvite(\''+ev.id+'\')">Invit\u00e9r reserve</button>';
+  html+='<button class="btn btn-light btn-sm" onclick="showExtraInvite(\''+ev.id+'\')">Invit\u00e9r spiller</button>';
   html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Slet begivenhed</button>';
   html+='</div>';
 
-  // Reserve invite panel
+  // Extra invite panel (uninvited regulars + reserves)
+  if(STATE.extraInvite===ev.id){
+    var allTeamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
+    var invitedIds=responses.map(function(r){return r.player_id;});
+    var notInvited=allTeamMembers.filter(function(m){return !m.is_trainer&&invitedIds.indexOf(m.player_id)<0&&getPlayerName(m.player_id)!=='Ukendt';});
+    if(!notInvited.length){
+      html+='<div style="font-size:12px;color:#aaa;margin-top:8px;">Alle holdspillere er allerede inviteret</div>';
+    } else {
+      html+='<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;margin-top:8px;">';
+      html+='<div style="font-size:11px;font-weight:700;color:#555;margin-bottom:8px;">V\u00e6lg spiller at invitere</div>';
+      for(var nii=0;nii<notInvited.length;nii++){
+        var ni=notInvited[nii];
+        var niname=getPlayerName(ni.player_id);
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
+        html+='<span style="font-size:13px;">'+esc(niname)+(ni.is_reserve?' <span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:3px;padding:0 4px;">R</span>':'')+'</span>';
+        html+='<button class="btn btn-dark btn-sm" onclick="inviteExtraPlayer(\''+ev.id+'\',\''+ni.player_id+'\','+ni.is_reserve+')">Invit\u00e9r</button>';
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+  }
   if(STATE.reserveInvite===ev.id){
     var teamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
     var reserves=teamMembers.filter(function(m){return m.is_reserve;});
@@ -2601,6 +2621,28 @@ window.removeTeamMemberDirect=function(memberId,teamId){
 window.showReserveInvite=function(evId){
   STATE.reserveInvite=STATE.reserveInvite===evId?null:evId;
   render();
+};
+
+window.showExtraInvite=function(evId){
+  STATE.extraInvite=STATE.extraInvite===evId?null:evId;
+  render();
+};
+
+window.inviteExtraPlayer=function(evId,profileId,isReserve){
+  var ev=null;
+  for(var i=0;i<STATE.events.length;i++){if(STATE.events[i].id===evId){ev=STATE.events[i];break;}}
+  var note=isReserve?'Inviteret som reserve':null;
+  sbPost('event_responses',{event_id:evId,player_id:profileId,response:null,note:note}).then(function(){
+    if(ev){
+      var d=new Date(ev.date);
+      var dateStr=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+      var title=(ev.type==='match'?'Udtaget til kamp: ':'Invitation: ')+ev.title;
+      var body=(ev.type==='match'?'Du er udtaget til kampen':'Du er inviteret til træning')+' d. '+dateStr+(ev.location?' på '+ev.location:'')+'. Tilmeld dig i appen.';
+      var html='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>'+title+'</h2><p>'+body+'</p><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Åbn appen</a></div>';
+      notifyPlayer(profileId,title,body,title,html,evId);
+    }
+    loadEventResponses().then(render);
+  });
 };
 
 window.inviteReserve=function(evId,profileId){
