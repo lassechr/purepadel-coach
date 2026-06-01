@@ -1651,9 +1651,9 @@ window.playerSideWarn=function(player, other){
 
 // ── HELPERS ──────────────────────────────────────────────────
 function getPlayerName(id){
-  // id is profiles.id - look up via profile_id on players
+  // id may be players.id or profiles.id
   for(var i=0;i<STATE.players.length;i++){
-    if(STATE.players[i].profile_id===id)return STATE.players[i].name||'Ukendt';
+    if(STATE.players[i].id===id||STATE.players[i].profile_id===id)return STATE.players[i].name||'Ukendt';
   }
   // fallback: check allProfiles
   for(var j=0;j<STATE.allProfiles.length;j++){
