@@ -2358,8 +2358,8 @@ function rEventModal(){
   html+='<div class="fg"><label class="flabel">Sted (valgfrit)</label><input class="finput" id="evLoc" value="'+esc(ed.location||'')+'" placeholder="Hal, adresse..."></div>';
   html+='<div class="fg"><label class="flabel">Beskrivelse (valgfrit)</label><textarea class="finput" id="evNotes" style="resize:vertical;min-height:60px;" placeholder="Ekstra info til spillerne...">'+esc(ed.notes||'')+'</textarea></div>';
 
-  // Player selection for matches (new events only)
-  if(!isEdit&&isMatch){
+  // Player selection for all new events (matches and training)
+  if(!isEdit){
     html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
     html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
     html+='<div class="flabel" style="margin-bottom:0;">Udtag spillere <span style="font-weight:400;color:#aaa;">(modtager invitation)</span></div>';
