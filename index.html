@@ -2872,25 +2872,30 @@ window.saveEvent=function(){
       alert('Oprettet '+promises.length+' begivenheder i serien');
     });
   } else {
+    // Read selected players BEFORE any async call while modal is still in DOM
+    var cbs=document.querySelectorAll('.evPlayerCb');
+    var selectedIds=[];
+    for(var i=0;i<cbs.length;i++){if(cbs[i].checked)selectedIds.push(cbs[i].value);}
+    var evDate=new Date(data.date);
+    var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+    var isMatchType=data.type==='match';
+    var invTitle=isMatchType?'Udtaget til kamp: '+data.title:'Invitation: '+data.title;
+    var invBody=isMatchType?'Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.':'Du er inviteret til tr\u00e6ning d. '+dateStr+'. Tilmeld dig i appen.';
+    var invHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>'+invTitle+'</h2><p>'+invBody+'</p><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">\u00c5bn appen</a></div>';
     sbPost('events',data).then(function(res){
       if(res&&(res.code||res.error)){alert('Fejl: '+JSON.stringify(res).substring(0,200));return;}
-      // Read selected players BEFORE closing modal
-      var cbs=document.querySelectorAll('.evPlayerCb');
-      var selectedIds=[];
-      for(var i=0;i<cbs.length;i++){if(cbs[i].checked)selectedIds.push(cbs[i].value);}
       var evId=Array.isArray(res)&&res[0]?res[0].id:null;
       closeModal();
-      // Create event_responses + send invitations
-      if(selectedIds.length&&evId){
-        var evDate=new Date(data.date);
-        var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
-        var matchTitle='Udtaget til kamp: '+data.title;
-        var matchBody='Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.';
-        var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>Du er udtaget!</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Bekr\u00e6ft deltagelse</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
-        for(var si=0;si<selectedIds.length;si++){
-          sbPost('event_responses',{event_id:evId,player_id:selectedIds[si],response:null});
-          notifyPlayer(selectedIds[si],matchTitle,matchBody,matchTitle,emailHtml,evId);
-        }
+      if(selectedIds.length){
+        // If evId not in response, find it via a fresh fetch
+        var getEvId=evId?Promise.resolve(evId):sbGet('events','team_id=eq.'+data.team_id+'&title=eq.'+encodeURIComponent(data.title)+'&order=created_at.desc&limit=1').then(function(rows){return Array.isArray(rows)&&rows[0]?rows[0].id:null;});
+        getEvId.then(function(eid){
+          if(!eid)return;
+          for(var si=0;si<selectedIds.length;si++){
+            sbPost('event_responses',{event_id:eid,player_id:selectedIds[si],response:null});
+            notifyPlayer(selectedIds[si],invTitle,invBody,invTitle,invHtml,eid);
+          }
+        });
       }
       loadEvents().then(function(){return loadEventResponses();}).then(render);
     });
