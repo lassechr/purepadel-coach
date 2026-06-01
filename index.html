@@ -2885,10 +2885,29 @@ window.toggleRecurEnd=function(){
 };
 
 window.deleteEventSeries=function(recurrenceId){
-  if(!confirm('Slet hele serien? Alle begivenheder i serien slettes.'))return;
-  // Load all events with this recurrence_id and delete them
+  if(!confirm('Slet hele serien? Alle begivenheder slettes og tilmeldte spillere får besked.'))return;
   sbGet('events','recurrence_id=eq.'+recurrenceId).then(function(evs){
     if(!Array.isArray(evs))return;
+    // Notify players for each future event they were invited to
+    var now=new Date();
+    var evIds=evs.filter(function(e){return new Date(e.date)>=now;}).map(function(e){return e.id;});
+    if(evIds.length){
+      var notifiedPlayers={};
+      evIds.forEach(function(eid){
+        var responses=(STATE.eventResponses||[]).filter(function(r){return r.event_id===eid;});
+        var ev=evs.filter(function(e){return e.id===eid;})[0]||null;
+        if(!ev)return;
+        var cancelTitle='Aflyst: '+ev.title+' (serie)';
+        var cancelBody='Træningsserien "'+ev.title+'" er aflyst. Alle fremtidige træninger er slettet.';
+        var cancelHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>⚠️ Serie aflyst</h2><p>'+cancelBody+'</p></div>';
+        responses.forEach(function(r){
+          if(!notifiedPlayers[r.player_id]){
+            notifiedPlayers[r.player_id]=true;
+            notifyPlayer(r.player_id,cancelTitle,cancelBody,cancelTitle,cancelHtml,null);
+          }
+        });
+      });
+    }
     var dels=evs.map(function(e){return sbDelete('events','id=eq.'+e.id);});
     Promise.all(dels).then(function(){
       closeModal();
@@ -2899,7 +2918,20 @@ window.deleteEventSeries=function(recurrenceId){
 };
 
 window.deleteEvent=function(id){
-  if(!confirm('Slet begivenhed?'))return;
+  if(!confirm('Slet begivenhed? Tilmeldte spillere får besked om aflysning.'))return;
+  // Find event and its responses before deleting
+  var ev=(STATE.events||[]).filter(function(e){return e.id===id;})[0]||null;
+  var responses=(STATE.eventResponses||[]).filter(function(r){return r.event_id===id;});
+  if(ev&&responses.length){
+    var evDate=new Date(ev.date);
+    var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+    var cancelTitle='Aflyst: '+ev.title;
+    var cancelBody=ev.title+' d. '+dateStr+' er aflyst.';
+    var cancelHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>⚠️ Begivenhed aflyst</h2><p>'+cancelBody+'</p><p style="color:#888;font-size:12px;">PurePadel</p></div>';
+    responses.forEach(function(r){
+      notifyPlayer(r.player_id,cancelTitle,cancelBody,cancelTitle,cancelHtml,null);
+    });
+  }
   sbDelete('events','id=eq.'+id).then(function(){
     closeModal();
     STATE.openEvent=null;
