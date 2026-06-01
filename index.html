@@ -1678,7 +1678,20 @@ function localDTNextHour(hoursAhead){
 
 
 function makeDatePicker(id, val) {
-  return '<input type="date" class="finput" id="'+id+'" value="'+(val||'')+'" onchange="'+(id==='evDateOnly'?'autoFillEndDate()':'')+'" style="margin-bottom:0;">';
+  var displayVal='';
+  if(val){try{var d=new Date(val);displayVal=d.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}catch(e){}}
+  return '<div style="display:flex;align-items:center;gap:8px;">'
+    +'<input type="date" class="finput" id="'+id+'" value="'+(val||'')+'" onchange="updateDateDisplay(\''+id+'\')'+(id==='evDateOnly'?';autoFillEndDate()':'')+'" style="margin-bottom:0;flex:1;">'
+    +'<span id="'+id+'_lbl" style="font-size:12px;color:#555;white-space:nowrap;min-width:80px;">'+displayVal+'</span>'
+    +'</div>';
+}
+
+function updateDateDisplay(id){
+  var inp=document.getElementById(id);
+  var lbl=document.getElementById(id+'_lbl');
+  if(!inp||!lbl)return;
+  if(inp.value){try{var d=new Date(inp.value);lbl.textContent=d.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}catch(e){lbl.textContent='';}}
+  else{lbl.textContent='';}
 }
 
 function syncDatePicker(id) {
@@ -2406,7 +2419,6 @@ function rEventModal(){
           html+='<span style="font-size:13px;color:#888;">'+esc(rname)+' <span style="font-size:10px;background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;border-radius:3px;padding:0 4px;">R</span></span>';
           html+='</label>';
         }
-        html+='</div>';
         } else {
           html+='<div style="font-size:11px;color:#b7770d;margin:8px 0;">Reserver inviteres manuelt via begivenheden ('+reserves.length+')</div>';
         }
