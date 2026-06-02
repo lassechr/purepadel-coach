@@ -3694,14 +3694,31 @@ window.exportPlayersExcel=function(clubIdFilter){
     ?allPlayers.filter(function(pl){return pl.club_id===filterClubId;})
     :allPlayers;
 
-  // Byg opslag: player.id → profil
+  // Byg opslag: player.id → profil (via profile_id)
   var profByPlayerId={};
   players.forEach(function(pl){
     if(pl.profile_id){
+      // Look in allProfiles first
       var pr=profiles.filter(function(p){return p.id===pl.profile_id;})[0];
+      // Fallback: check if it's the current user
+      if(!pr&&STATE.profile&&STATE.profile.id===pl.profile_id)pr=STATE.profile;
       if(pr)profByPlayerId[pl.id]=pr;
     }
   });
+
+  // Byg opslag: club_id → navn (via allProfiles club_admin entries)
+  var clubNameById={};
+  profiles.forEach(function(p){
+    if(p.role==='club_admin'||p.club_name){clubNameById[p.id]=p.club_name||p.name||p.email||p.id;}
+  });
+  // Also add current profile if club_admin
+  if(STATE.profile&&(STATE.profile.role==='club_admin'||STATE.profile.club_name)){
+    clubNameById[STATE.profile.id]=STATE.profile.club_name||STATE.profile.name||STATE.profile.id;
+  }
+  // Add clubProfile if available
+  if(STATE.clubProfile){
+    clubNameById[STATE.clubProfile.id]=STATE.clubProfile.club_name||STATE.clubProfile.name||STATE.clubProfile.id;
+  }
 
   // Byg opslag: player.id → hold-info
   var membersByPlayerId={};
@@ -3733,12 +3750,11 @@ window.exportPlayersExcel=function(clubIdFilter){
       subStatus=days<0?'Udløbet':days<30?'Udløber snart':'Aktiv';
     }
     // Find foreningsnavn
-    var clubProfile=profiles.filter(function(p){return p.id===pl.club_id;})[0];
-    var foreningNavn=clubProfile?(clubProfile.club_name||clubProfile.name||pl.club_id):(pl.club_id||'');
+    var foreningNavn=clubNameById[pl.club_id]||pl.club_id||'';
     return {
       'Forening': foreningNavn,
       'Navn': pl.name||pr.name||'',
-      'Email': pr.email||'',
+      'Email': pr.email||pl.email||'',
       'Niveau': pl.level||'',
       'Side': sideMap[pl.side]||pl.side||'',
       'Noter': pl.notes||'',
