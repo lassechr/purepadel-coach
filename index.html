@@ -1955,11 +1955,31 @@ function localDTNextHour(hoursAhead){
 
 
 function makeDatePicker(id, val) {
-  var extraOnchange=(id==='evDateOnly')?';autoFillEndDate()':'';
-  return '<input type="date" class="finput" id="'+id+'" value="'+(val||'')+'" onchange="'+extraOnchange.slice(1)+'" style="margin-bottom:0;">';
+  var y='', m='', d='';
+  if(val){var p=val.split('-');y=p[0]||'';m=p[1]||'';d=p[2]||'';}
+  var days='<option value="">Dag</option>';
+  for(var i=1;i<=31;i++){var dv=(i<10?'0':'')+i;days+='<option value="'+dv+'"'+(d===dv?' selected':'')+'>'+i+'</option>';}
+  var months='<option value="">Mdr</option>';
+  var mnames=['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+  for(var i=0;i<12;i++){var mv=(i<9?'0':'')+(i+1);months+='<option value="'+mv+'"'+(m===mv?' selected':'')+'>'+mnames[i]+'</option>';}
+  var years='<option value="">År</option>';
+  var curY=new Date().getFullYear();
+  for(var i=curY;i<=curY+3;i++){years+='<option value="'+i+'"'+(y===String(i)?' selected':'')+'>'+i+'</option>';}
+  var fn='syncDatePicker(\''+id+'\')';
+  return '<div style="display:flex;gap:4px;">'
+    +'<select class="finput" id="'+id+'_d" style="flex:0.8;margin-bottom:0;" onchange="'+fn+'">'+days+'</select>'
+    +'<select class="finput" id="'+id+'_m" style="flex:1;margin-bottom:0;" onchange="'+fn+'">'+months+'</select>'
+    +'<select class="finput" id="'+id+'_y" style="flex:1.2;margin-bottom:0;" onchange="'+fn+'">'+years+'</select>'
+    +'<input type="hidden" id="'+id+'">'
+    +'</div>';
 }
 
 function syncDatePicker(id) {
+  var d=(document.getElementById(id+'_d')||{}).value||'';
+  var m=(document.getElementById(id+'_m')||{}).value||'';
+  var y=(document.getElementById(id+'_y')||{}).value||'';
+  var hidden=document.getElementById(id);
+  if(hidden)hidden.value=(y&&m&&d)?(y+'-'+m+'-'+d):'';
   if(id==='evDateOnly')autoFillEndDate();
 }
 
