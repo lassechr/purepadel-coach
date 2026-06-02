@@ -2067,10 +2067,10 @@ function rHold(){
     var typeLabel=team.type==='dame'?'Damehold':team.type==='mix'?'Mixhold':'Herrehold';
     var isTeamOpen=STATE.openTeam===team.id;
 
-    html+='<div style="border:1.5px solid #e5e5e5;border-radius:12px;margin-bottom:16px;overflow:hidden;">';
+    html+='<div style="border:1.5px solid '+(upcoming.length?'#2ecc71':'#e5e5e5')+';border-radius:12px;margin-bottom:16px;overflow:hidden;">';
 
     // Training team header
-    html+='<div style="background:#f9f9f9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<div style="background:'+(upcoming.length?'#f0faf4':'#f9f9f9')+';padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">';
     html+='<div style="flex:1;min-width:0;">';
     html+='<div style="font-size:15px;font-weight:700;color:#111;">'+esc(team.name)+'</div>';
     html+='<div style="font-size:12px;color:#888;margin-top:2px;">'+typeLabel+' &bull; '+upcoming.length+' kommende</div>';
@@ -2612,6 +2612,8 @@ function rEventModal(){
     html+='<div id="evRecurEndWrap" style="display:none;margin-top:10px;">';
     html+='<label class="flabel">Gentag til og med</label>';
     html+=makeDatePicker('evRecurEnd','');
+    html+='<div style="margin-top:10px;"><label class="flabel">Tilmeldingsfrist (dage før hver træning)</label>';
+    html+='<select class="finput" id="evRecurDeadlineOffset"><option value="0">Ingen frist</option><option value="1">1 dag før</option><option value="2" selected>2 dage før</option><option value="3">3 dage før</option><option value="5">5 dage før</option><option value="7">7 dage før</option></select></div>';
     html+='</div></div>';
   } else if(ed.recurrence_id){
     html+='<div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#b7770d;">Del af tilbagevendende serie &bull; <span style="cursor:pointer;text-decoration:underline;" onclick="deleteEventSeries(\''+ed.recurrence_id+'\')">Slet hele serien</span></div>';
@@ -3023,6 +3025,7 @@ window.saveEvent=function(){
     });
   } else if(recurType&&recurEnd){
     var recId=(typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).substr(2));
+    var recurOffsetDays=parseInt((document.getElementById('evRecurDeadlineOffset')||{}).value||'0');
     var promises=[];
     var cur=new Date(startDate);
     var endDateObj=new Date(recurEnd+'T23:59:59');
@@ -3037,6 +3040,12 @@ window.saveEvent=function(){
         ed2.setHours(parseInt(p2[0]),parseInt(p2[1]),0,0);
         if(ed2<=cur)ed2.setDate(ed2.getDate()+1);
         evData.end_time=ed2.toISOString();
+      }
+      if(recurOffsetDays>0){
+        var dl=new Date(cur);
+        dl.setDate(dl.getDate()-recurOffsetDays);
+        dl.setHours(23,59,0,0);
+        evData.signup_deadline=dl.toISOString();
       }
       promises.push(sbPost('events',evData));
       cur.setDate(cur.getDate()+interval);
@@ -3091,7 +3100,19 @@ window.deleteEventSeries=function(recurrenceId){
 };
 
 window.deleteEvent=function(id){
-  if(!confirm('Slet begivenhed?'))return;
+  if(!confirm('Slet begivenhed? Inviterede spillere får besked om aflysning.'))return;
+  var ev=(STATE.events||[]).filter(function(e){return e.id===id;})[0]||null;
+  var invited=(STATE.eventResponses||[]).filter(function(r){return r.event_id===id;});
+  if(ev&&invited.length){
+    var d=new Date(ev.date);
+    var ds=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+    var cancelTitle='Aflyst: '+ev.title;
+    var cancelBody=ev.title+' d. '+ds+' er desværre aflyst.';
+    var cancelHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2 style="color:#c0392b;">Aflyst: '+ev.title+'</h2><p>'+cancelBody+'</p><p style="color:#888;font-size:12px;">PurePadel</p></div>';
+    for(var i=0;i<invited.length;i++){
+      notifyPlayer(invited[i].player_id,cancelTitle,cancelBody,cancelTitle,cancelHtml,null);
+    }
+  }
   sbDelete('events','id=eq.'+id).then(function(){
     closeModal();
     STATE.openEvent=null;
