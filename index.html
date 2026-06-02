@@ -3044,7 +3044,8 @@ window.saveEvent=function(){
       if(recurOffsetDays>0){
         var dl=new Date(cur);
         dl.setDate(dl.getDate()-recurOffsetDays);
-        dl.setHours(23,59,0,0);
+        var dtp=deadlineTime&&deadlineTime!=='23:59'?deadlineTime.split(':'):[23,59];
+        dl.setHours(parseInt(dtp[0]||23),parseInt(dtp[1]||59),0,0);
         evData.signup_deadline=dl.toISOString();
       }
       promises.push(sbPost('events',evData));
