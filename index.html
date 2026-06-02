@@ -1291,10 +1291,12 @@ window.amStart=function(){
 
 window.amSetScore=function(rnd,mi,team,val){
   var m=STATE.americano.rounds[rnd].matches[mi];
-  var v=parseInt(val)||0;
+  var v=Math.max(0,parseInt(val)||0);
   var ppg=STATE.americano.pointsPerGame;
-  if(team===1){m.score1=Math.min(v,ppg);m.score2=Math.min(ppg-m.score1,ppg);}
-  else{m.score2=Math.min(v,ppg);m.score1=Math.min(ppg-m.score2,ppg);}
+  v=Math.min(v,ppg);
+  if(team===1){m.score1=v;m.score2=ppg-v;}
+  else{m.score2=v;m.score1=ppg-v;}
+  render();
 };
 
 window.amNextRound=function(){
