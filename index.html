@@ -1955,20 +1955,34 @@ function localDTNextHour(hoursAhead){
 
 
 function makeDatePicker(id, val) {
-  var displayVal='';
-  if(val){try{var dd=new Date(val+'T00:00:00');displayVal=dd.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}catch(e){}}
-  var extraOnchange=(id==='evDateOnly')?';autoFillEndDate()':'';
-  return '<div style="display:flex;align-items:center;gap:8px;">'
-    +'<input type="date" class="finput" id="'+id+'" value="'+(val||'')+'" onchange="updateDateDisplay(\''+id+'\')'+extraOnchange+'" style="margin-bottom:0;flex:1;min-width:0;">'
-    +'<span id="'+id+'_lbl" style="font-size:12px;color:#666;white-space:nowrap;">'+displayVal+'</span>'
+  var displayVal=val?formatDateDKLong(val):'Vælg dato';
+  var hasVal=!!val;
+  var extraOnchange=(id==='evDateOnly')?'autoFillEndDate();':'';
+  return '<div style="position:relative;height:44px;">'
+    +'<div id="'+id+'_lbl" style="position:absolute;inset:0;display:flex;align-items:center;gap:10px;padding:0 13px;border:1.5px solid #ddd;border-radius:8px;background:#fff;pointer-events:none;">'
+    +'<span style="font-size:18px;line-height:1;">&#128197;</span>'
+    +'<span id="'+id+'_txt" style="font-size:'+(hasVal?'15':'14')+'px;font-weight:'+(hasVal?'600':'400')+';color:'+(hasVal?'#111':'#aaa')+';">'+displayVal+'</span>'
+    +'</div>'
+    +'<input type="date" id="'+id+'" value="'+(val||'')+'" onchange="updateDateDisplay(\''+id+'\');'+extraOnchange+'" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:16px;">'
     +'</div>';
+}
+
+function formatDateDKLong(val){
+  try{
+    var dd=new Date(val+'T00:00:00');
+    return dd.toLocaleDateString('da-DK',{day:'numeric',month:'long',year:'numeric'});
+  }catch(e){return val;}
 }
 
 function updateDateDisplay(id){
   var input=document.getElementById(id);
+  var txt=document.getElementById(id+'_txt');
   var lbl=document.getElementById(id+'_lbl');
-  if(input&&lbl&&input.value){
-    try{var dd=new Date(input.value+'T00:00:00');lbl.textContent=dd.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}catch(e){}
+  if(input&&txt&&input.value){
+    txt.textContent=formatDateDKLong(input.value);
+    txt.style.fontSize='15px';
+    txt.style.fontWeight='600';
+    txt.style.color='#111';
   }
 }
 
