@@ -1994,10 +1994,11 @@ function makeTimePicker(id, val) {
     mins+='<option value="'+v+'"'+(mm===v?' selected':'')+'>'+v+'</option>';
   });
   var fn='syncTimePicker(\''+id+'\')';
-  return '<div style="display:flex;gap:4px;align-items:center;">'
-    +'<select class="finput" id="'+id+'_h" style="flex:1;margin-bottom:0;" onchange="'+fn+'">'+hours+'</select>'
-    +'<span style="font-size:16px;color:#888;">:</span>'
-    +'<select class="finput" id="'+id+'_m" style="flex:1;margin-bottom:0;" onchange="'+fn+'">'+mins+'</select>'
+  var tsel='padding:6px 4px;background:#fff;border:1.5px solid #ddd;border-radius:8px;color:#111;font-family:DM Sans,sans-serif;font-size:13px;outline:none;-webkit-appearance:none;appearance:none;text-align:center;';
+  return '<div style="display:flex;gap:4px;align-items:center;width:110px;">'
+    +'<select id="'+id+'_h" style="flex:1;'+tsel+'" onchange="'+fn+'">'+hours+'</select>'
+    +'<span style="font-size:14px;color:#888;flex-shrink:0;">:</span>'
+    +'<select id="'+id+'_m" style="flex:1;'+tsel+'" onchange="'+fn+'">'+mins+'</select>'
     +'<input type="hidden" id="'+id+'">'
     +'</div>';
 }
