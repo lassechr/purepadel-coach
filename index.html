@@ -2811,12 +2811,16 @@ window.setTeamType=function(type){
 
 window.toggleTeam=function(id){
   STATE.openTeam=STATE.openTeam===id?null:id;
-  // Clear cache for this team so it reloads fresh
+  render();
   if(STATE.openTeam===id){
     if(!STATE.teamMembersCache)STATE.teamMembersCache={};
-    delete STATE.teamMembersCache[id];
+    if(!STATE.teamMembersCache[id]){
+      loadTeamMembers(id).then(function(members){
+        STATE.teamMembersCache[id]=Array.isArray(members)?members:[];
+        render();
+      });
+    }
   }
-  render();
 };
 
 window.removeTeamMemberDirect=function(memberId,teamId){
