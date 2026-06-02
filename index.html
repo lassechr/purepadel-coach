@@ -2354,10 +2354,27 @@ function rEventRow(ev,team,isPast){
 function rEventDetail(ev,responses){
   var yes=responses.filter(function(r){return r.response==='yes';});
   var no=responses.filter(function(r){return r.response==='no';});
-  var unanswered=STATE.players.filter(function(p){
-    return !responses.find(function(r){return r.player_id===p.id;});
-  });
+  var pending=responses.filter(function(r){return r.response===null;});
+  var isTrainerRole=STATE.profile&&(STATE.profile.role==='trainer'||STATE.profile.role==='club_admin'||STATE.profile.role==='superadmin');
   var html='<div style="background:#f9f9f9;padding:14px 16px;border-top:1px solid #eee;">';
+
+  // Trainer own response
+  if(isTrainerRole){
+    var myResp=responses.filter(function(r){return r.player_id===STATE.profile.id;})[0]||null;
+    html+='<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee;">';
+    html+='<div style="font-size:11px;font-weight:700;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Din tilmelding</div>';
+    if(myResp&&myResp.response==='yes'){
+      html+='<span style="display:inline-block;padding:5px 12px;border-radius:6px;background:#eafaf1;border:1.5px solid #a9dfbf;color:#1e8449;font-size:13px;font-weight:600;margin-right:8px;">&#10003; Tilmeldt</span>';
+      html+='<button class="btn btn-light btn-sm" onclick="trainerRespond(\''+ev.id+'\',\'no\')">Afmeld</button>';
+    } else if(myResp&&myResp.response==='no'){
+      html+='<span style="display:inline-block;padding:5px 12px;border-radius:6px;background:#fdecea;border:1.5px solid #f5b7b1;color:#c0392b;font-size:13px;font-weight:600;margin-right:8px;">&#10007; Frameldt</span>';
+      html+='<button class="btn btn-light btn-sm" onclick="trainerRespond(\''+ev.id+'\',\'yes\')">Tilmeld</button>';
+    } else {
+      html+='<button class="btn btn-dark btn-sm" onclick="trainerRespond(\''+ev.id+'\',\'yes\')">&#10003; Tilmeld mig</button>';
+      html+='<button class="btn btn-light btn-sm" style="margin-left:6px;" onclick="trainerRespond(\''+ev.id+'\',\'no\')">&#10007; Afmeld mig</button>';
+    }
+    html+='</div>';
+  }
 
   // YES
   html+='<div style="font-size:11px;font-weight:700;color:#1e8449;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Tilmeldt ('+yes.length+')</div>';
@@ -2381,40 +2398,39 @@ function rEventDetail(ev,responses){
     html+='</div>';
   }
 
-  // NOT ANSWERED
-  html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px;">Ikke svaret ('+unanswered.length+')</div>';
-  if(!unanswered.length)html+='<div style="font-size:12px;color:#aaa;">Alle har svaret</div>';
-  for(var k=0;k<unanswered.length;k++){
-    html+='<div style="font-size:13px;color:#aaa;padding:5px 0;border-bottom:1px solid #eee;">'+esc(unanswered[k].name)+'</div>';
+  // NOT ANSWERED \u2014 only show invited players who haven't responded
+  html+='<div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px;">Afventer svar ('+pending.length+')</div>';
+  if(!pending.length)html+='<div style="font-size:12px;color:#aaa;">Alle inviterede har svaret</div>';
+  for(var k=0;k<pending.length;k++){
+    var pr=pending[k];
+    html+='<div style="font-size:13px;color:#aaa;padding:5px 0;border-bottom:1px solid #eee;">'+esc(getPlayerName(pr.player_id))+'</div>';
   }
 
   // Actions
   html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">';
-  html+='<button class="btn btn-dark btn-sm" onclick="sendReminder(\''+ev.id+'\')">Send p&#229;mindelse til ikke-svar</button>';
-  html+='<button class="btn btn-light btn-sm" onclick="showReserveInvite(\''+ev.id+'\')">Invit\u00e9r reserve</button>';
+  html+='<button class="btn btn-dark btn-sm" onclick="sendReminder(\''+ev.id+'\')">Send p&#229;mindelse</button>';
+  html+='<button class="btn btn-light btn-sm" onclick="showExtraInvite(\''+ev.id+'\')">Invit&#233;r spiller</button>';
   html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Slet begivenhed</button>';
   html+='</div>';
 
-  // Reserve invite panel
-  if(STATE.reserveInvite===ev.id){
-    var teamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
-    var reserves=teamMembers.filter(function(m){return m.is_reserve;});
-    if(!reserves.length){
-      html+='<div style="font-size:12px;color:#aaa;margin-top:8px;">Ingen reserver p\u00e5 dette hold</div>';
+  // Extra invite panel \u2014 all uninvited team members
+  if(STATE.extraInvite===ev.id){
+    var allTeamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
+    var invitedIds=responses.map(function(r){return r.player_id;});
+    var notInvited=allTeamMembers.filter(function(m){
+      return !m.is_trainer && invitedIds.indexOf(m.player_id)<0 && getPlayerName(m.player_id)!=='Ukendt';
+    });
+    if(!notInvited.length){
+      html+='<div style="font-size:12px;color:#aaa;margin-top:8px;">Alle holdets spillere er allerede inviteret</div>';
     } else {
       html+='<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;margin-top:8px;">';
-      html+='<div style="font-size:11px;font-weight:700;color:#b7770d;margin-bottom:8px;">V\u00e6lg reserve at invitere</div>';
-      for(var rri=0;rri<reserves.length;rri++){
-        var rr=reserves[rri];
-        var rrname=getPlayerName(rr.player_id);
-        var alreadyInvited=responses.some(function(r){return r.player_id===rr.player_id;});
+      html+='<div style="font-size:11px;font-weight:700;color:#b7770d;margin-bottom:8px;">V\u00e6lg spiller at invitere</div>';
+      for(var ei=0;ei<notInvited.length;ei++){
+        var em=notInvited[ei];
+        var emname=getPlayerName(em.player_id);
         html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
-        html+='<span style="font-size:13px;">'+esc(rrname)+'</span>';
-        if(alreadyInvited){
-          html+='<span style="font-size:11px;color:#1e8449;">Allerede inviteret</span>';
-        } else {
-          html+='<button class="btn btn-dark btn-sm" onclick="inviteReserve(\''+ev.id+'\',\''+rr.player_id+'\')">Invit\u00e9r</button>';
-        }
+        html+='<span style="font-size:13px;">'+esc(emname)+(em.is_reserve?' <span style="font-size:10px;color:#b7770d;">(Reserve)</span>':'')+'</span>';
+        html+='<button class="btn btn-dark btn-sm" onclick="inviteExtraPlayer(\''+ev.id+'\',\''+em.player_id+'\','+!!em.is_reserve+')">Invit\u00e9r</button>';
         html+='</div>';
       }
       html+='</div>';
@@ -2423,6 +2439,42 @@ function rEventDetail(ev,responses){
   html+='</div>';
   return html;
 }
+
+window.trainerRespond=function(evId,response){
+  var existing=STATE.eventResponses.filter(function(r){return r.event_id===evId&&r.player_id===STATE.profile.id;})[0]||null;
+  if(existing){
+    sbPatch('event_responses',{response:response},'event_id=eq.'+evId+'&player_id=eq.'+STATE.profile.id).then(function(){
+      loadEventResponses().then(render);
+    });
+  } else {
+    sbPost('event_responses',{event_id:evId,player_id:STATE.profile.id,response:response}).then(function(){
+      loadEventResponses().then(render);
+    });
+  }
+};
+
+window.showExtraInvite=function(evId){
+  STATE.extraInvite=STATE.extraInvite===evId?null:evId;
+  render();
+};
+
+window.inviteExtraPlayer=function(evId,profileId,isReserve){
+  var note=isReserve?'Inviteret som reserve':null;
+  var data={event_id:evId,player_id:profileId,response:null};
+  if(note)data.note=note;
+  sbPost('event_responses',data).then(function(){
+    var ev=(STATE.events||[]).filter(function(e){return e.id===evId;})[0]||null;
+    if(ev){
+      var title='Invitation: '+esc(ev.title);
+      var d=new Date(ev.date);
+      var ds=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+      var body='Du er inviteret til '+ev.title+' d. '+ds+(ev.location?' p\u00e5 '+ev.location:'');
+      notifyPlayer(profileId,title,body,title,'<p>'+body+'</p>',evId);
+    }
+    STATE.extraInvite=null;
+    loadEventResponses().then(render);
+  });
+};
 
 function rTeamModal(){
   var ed=STATE.editTeam;
@@ -2569,8 +2621,8 @@ function rEventModal(){
   html+='<div class="fg"><label class="flabel">Sted (valgfrit)</label><input class="finput" id="evLoc" value="'+esc(ed.location||'')+'" placeholder="Hal, adresse..."></div>';
   html+='<div class="fg"><label class="flabel">Beskrivelse (valgfrit)</label><textarea class="finput" id="evNotes" style="resize:vertical;min-height:60px;" placeholder="Ekstra info til spillerne...">'+esc(ed.notes||'')+'</textarea></div>';
 
-  // Player selection for matches (new events only)
-  if(!isEdit&&isMatch){
+  // Player selection for all new events
+  if(!isEdit){
     html+='<div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px;">';
     html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
     html+='<div class="flabel" style="margin-bottom:0;">Udtag spillere <span style="font-weight:400;color:#aaa;">(modtager invitation)</span></div>';
@@ -2597,7 +2649,6 @@ function rEventModal(){
         if(!alreadyIn)teamMembers.push(parentMembers[pmi]);
       }
     }
-    html+='<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Debug: team='+selTeamId.substring(0,8)+'... members='+teamMembers.length+(parentTeamId?' (inkl. fra tr&#230;ningshold)':'')+'</div>';
     if(!teamMembers.length&&selTeamId){
       html+='<div style="font-size:12px;color:#aaa;padding:8px 0;">Ingen spillere på holdet endnu</div>';
     } else if(!selTeamId){
@@ -2620,7 +2671,7 @@ function rEventModal(){
           var um=regulars[upi];
           var uname=getPlayerName(um.player_id);
           html+='<label style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">';
-          html+='<input type="checkbox" class="evPlayerCb" value="'+um.player_id+'" checked style="width:16px;height:16px;">';
+          html+='<input type="checkbox" class="evPlayerCb" value="'+um.player_id+'"'+(isMatch?'':' checked')+' style="width:16px;height:16px;">';
           html+='<span style="font-size:13px;">'+esc(uname)+'</span>';
           html+='</label>';
         }
@@ -3105,16 +3156,15 @@ window.sendReminder=function(eventId){
   var dateStr=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
   var title='P\u00e5mindelse: '+ev.title;
   var body='Husk at tilmelde dig d. '+dateStr+'. Tilmeld dig nu i appen.';
-  var teamMembers=(STATE.teamMembersCache&&STATE.teamMembersCache[ev.team_id])||[];
-  var unanswered=teamMembers.filter(function(m){return answeredIds.indexOf(m.player_id)<0;});
-  if(!unanswered.length){alert('Alle har allerede svaret!');return;}
+  var pending=responses.filter(function(r){return r.response===null;});
+  if(!pending.length){alert('Alle inviterede har allerede svaret!');return;}
   var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;">'
     +'<h2 style="color:#111;">'+title+'</h2>'
     +'<p>'+body+'</p>'
     +'<a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Tilmeld dig nu</a>'
     +'<p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
-  for(var j=0;j<unanswered.length;j++){
-    notifyPlayer(unanswered[j].player_id,title,body,title,emailHtml);
+  for(var j=0;j<pending.length;j++){
+    notifyPlayer(pending[j].player_id,title,body,title,emailHtml);
   }
   alert('P\u00e5mindelse sendt til '+unanswered.length+' spiller(e) der ikke har svaret.');
 };
