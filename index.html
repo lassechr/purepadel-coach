@@ -1799,6 +1799,43 @@ function rHistorik(){
 
     if(STATE.openSession===s.id){
       html+='<div style="margin-top:10px;">';
+
+      // Americano scoreboard
+      var isAmericano=s.name&&s.name.indexOf('Americano')===0&&matches.length>0&&matches[0].score1!==undefined;
+      if(isAmericano){
+        var amPts={};
+        playerIds.forEach(function(id){amPts[id]=0;});
+        matches.forEach(function(m){
+          var s1=parseInt(m.score1)||0,s2=parseInt(m.score2)||0;
+          (m.t1||[]).forEach(function(id){amPts[id]=(amPts[id]||0)+s1;});
+          (m.t2||[]).forEach(function(id){amPts[id]=(amPts[id]||0)+s2;});
+        });
+        var amBoard=Object.keys(amPts).map(function(id){
+          var name=m&&m.t1&&m.t1[0]===id?m.p1name:null; // fallback below
+          // find name from matches
+          var nm='Ukendt';
+          for(var mx=0;mx<matches.length;mx++){
+            var mx2=matches[mx];
+            if(mx2.t1&&mx2.t1[0]===id){nm=mx2.p1name||nm;break;}
+            if(mx2.t1&&mx2.t1[1]===id){nm=mx2.p2name||nm;break;}
+            if(mx2.t2&&mx2.t2[0]===id){nm=mx2.p3name||nm;break;}
+            if(mx2.t2&&mx2.t2[1]===id){nm=mx2.p4name||nm;break;}
+          }
+          return{id:id,name:nm,points:amPts[id]||0};
+        }).sort(function(a,b){return b.points-a.points;});
+        html+='<div style="background:#f0faf4;border:1px solid #a9dfbf;border-radius:8px;padding:12px;margin-bottom:12px;">';
+        html+='<div style="font-size:11px;font-weight:600;color:#1e8449;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Slutstilling</div>';
+        for(var bi=0;bi<amBoard.length;bi++){
+          var bp=amBoard[bi];
+          html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.05);">';
+          html+='<div style="font-size:13px;font-weight:700;color:#888;width:18px;">'+( bi+1)+'</div>';
+          html+='<div style="flex:1;font-size:13px;font-weight:600;color:#111;">'+esc(bp.name)+'</div>';
+          html+='<div style="font-size:15px;font-weight:700;color:#1e8449;">'+bp.points+'</div>';
+          html+='</div>';
+        }
+        html+='</div>';
+      }
+
       var baneCount=Math.ceil(matches.length/rounds);
 
       if(rounds>1){
@@ -1819,12 +1856,15 @@ function rHistorik(){
             var p2n=m.p2name||getPlayerName(m.t1[1]);
             var p3n=m.p3name||getPlayerName(m.t2[0]);
             var p4n=m.p4name||getPlayerName(m.t2[1]);
+            var hasScore=m.score1!==undefined&&m.score2!==undefined;
             html+='<div style="padding:8px 10px;background:#f9f9f9;border-radius:6px;margin-bottom:6px;font-size:13px;">';
             html+='<span style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px;">Bane '+(mi+1)+'</span>';
-            html+='<span style="color:#1d6fb5;font-weight:600;">'+esc(p1n)+' / '+esc(p2n)+'</span>';
-            html+='<span style="color:#aaa;margin:0 8px;">vs</span>';
-            html+='<span style="color:#c0392b;font-weight:600;">'+esc(p3n)+' / '+esc(p4n)+'</span>';
-            html+='</div>';
+            html+='<div style="display:flex;align-items:center;gap:6px;">';
+            html+='<span style="color:#1d6fb5;font-weight:600;flex:1;">'+esc(p1n)+' / '+esc(p2n)+'</span>';
+            if(hasScore){html+='<span style="font-weight:700;color:#111;font-size:15px;">'+m.score1+'</span><span style="color:#aaa;">–</span><span style="font-weight:700;color:#111;font-size:15px;">'+m.score2+'</span>';}
+            else{html+='<span style="color:#aaa;margin:0 4px;">vs</span>';}
+            html+='<span style="color:#c0392b;font-weight:600;flex:1;text-align:right;">'+esc(p3n)+' / '+esc(p4n)+'</span>';
+            html+='</div></div>';
           }
           // Show coach players for this round
           var coachIds=rMatches.length>0&&rMatches[0].reserveIds?rMatches[0].reserveIds:[];
