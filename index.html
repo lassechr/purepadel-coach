@@ -1255,29 +1255,43 @@ function amStandings(){
   }).sort(function(a,b){return b.points-a.points;});
 }
 
+function amMatchKey(t1,t2){
+  return [t1[0],t1[1],t2[0],t2[1]].slice().sort().join('|');
+}
+
 function amGenRound(){
   var standings=amStandings();
   var n=standings.length;
   var courts=n/4;
-  var matches=[];
-  var paired=[];
-  // pair by standings: 1+2 vs 3+4, 5+6 vs 7+8, etc. per court
-  // rotate: top half vs bottom half to avoid same partners
   var rndIdx=STATE.americano.rounds.length;
-  // Use rotation: for round r, shift partners
   var order=standings.map(function(s){return s.id;});
+
+  // Collect all previous match keys to avoid repeats
+  var prevKeys={};
+  STATE.americano.rounds.forEach(function(r){
+    r.matches.forEach(function(m){prevKeys[amMatchKey(m.t1,m.t2)]=true;});
+  });
+
+  // 3 pairing patterns per court of 4: [0,3]vs[1,2], [0,1]vs[2,3], [0,2]vs[1,3]
+  var patterns=[
+    function(o){return{t1:[o[0],o[3]],t2:[o[1],o[2]]};},
+    function(o){return{t1:[o[0],o[1]],t2:[o[2],o[3]]};},
+    function(o){return{t1:[o[0],o[2]],t2:[o[1],o[3]]};}
+  ];
+
+  var matches=[];
   for(var c=0;c<courts;c++){
     var base=c*4;
-    // Rotate partner selection by round number
-    var t1,t2;
-    if(rndIdx%2===0){
-      t1=[order[base],order[base+3]];
-      t2=[order[base+1],order[base+2]];
-    } else {
-      t1=[order[base],order[base+1]];
-      t2=[order[base+2],order[base+3]];
+    var slice=order.slice(base,base+4);
+    var chosen=null;
+    // Try patterns starting from rndIdx to spread variety
+    for(var pi=0;pi<patterns.length;pi++){
+      var candidate=patterns[(rndIdx+pi)%patterns.length](slice);
+      if(!prevKeys[amMatchKey(candidate.t1,candidate.t2)]){chosen=candidate;break;}
     }
-    matches.push({t1:t1,t2:t2,score1:0,score2:0});
+    // If all 3 patterns already played, just use the base rotation (can't avoid repeat)
+    if(!chosen) chosen=patterns[rndIdx%patterns.length](slice);
+    matches.push({t1:chosen.t1,t2:chosen.t2,score1:0,score2:0});
   }
   return{matches:matches};
 }
