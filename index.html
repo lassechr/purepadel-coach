@@ -1135,13 +1135,222 @@ function rPlayers() {
   return html;
 }
 
+// ── AMERICANO ────────────────────────────────────────────────
+function rAmericano() {
+  if(!STATE.americano) STATE.americano = {active:false,players:[],rounds:[],pointsPerGame:32,currentRound:0};
+  var am = STATE.americano;
+  var html = '<div class="sec-head"><div class="sec-title">Americano</div></div>';
+
+  // Sub-tab switcher
+  html += '<div style="display:flex;gap:0;margin-bottom:18px;border:1.5px solid #e5e5e5;border-radius:10px;overflow:hidden;">';
+  html += '<div onclick="STATE.matchSubTab=\'kampopsaetning\';render()" style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:#555;">Kampopsætning</div>';
+  html += '<div style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#111;color:#fff;">Americano</div>';
+  html += '</div>';
+
+  if(!am.active){
+    // Setup phase
+    html += '<div class="card" style="margin-bottom:16px;">';
+    html += '<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Point per kamp</div>';
+    html += '<div style="display:flex;gap:8px;">';
+    [16,24,32].forEach(function(v){
+      var act=am.pointsPerGame===v;
+      html += '<div onclick="STATE.americano.pointsPerGame='+v+';render()" style="flex:1;padding:10px;text-align:center;border:1.5px solid '+(act?'#111':'#e5e5e5')+';border-radius:8px;cursor:pointer;background:'+(act?'#111':'#fff')+';color:'+(act?'#fff':'#555')+';font-weight:600;font-size:14px;">'+v+'</div>';
+    });
+    html += '</div></div>';
+
+    html += '<div class="card" style="margin-bottom:16px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
+    html += '<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;">Vælg spillere ('+am.players.length+' valgt)</div>';
+    html += '</div>';
+    for(var pi=0;pi<STATE.players.length;pi++){
+      var p=STATE.players[pi];var ac=acolor(p.id);var on=am.players.indexOf(p.id)>-1;
+      html += '<div class="att-row'+(on?' on':'')+'" onclick="amTogglePlayer(\''+p.id+'\')">';
+      html += '<div class="att-chk"><span style="color:#fff;font-size:11px;font-weight:700;">'+(on?'✓':'')+'</span></div>';
+      html += '<div class="avatar" style="width:30px;height:30px;font-size:11px;color:'+ac.color+';background:'+ac.bg+';border-color:'+ac.border+';">'+initials(p.name)+'</div>';
+      html += '<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+esc(p.name)+'</div><div style="font-size:12px;color:#aaa;">'+('★'.repeat(p.level))+('☆'.repeat(5-p.level))+'</div></div>';
+      html += '</div>';
+    }
+    if(am.players.length%4!==0||am.players.length<4){
+      html += '<div style="font-size:12px;color:#e67e22;margin-top:8px;">Vælg et antal spillere deleligt med 4 (min. 4)</div>';
+    }
+    html += '</div>';
+
+    var canStart = am.players.length>=4 && am.players.length%4===0;
+    html += '<button class="btn btn-dark'+(canStart?'':' btn-disabled')+'" '+(canStart?'':'disabled')+' onclick="amStart()">Start turnering</button>';
+  } else {
+    // Active tournament
+    var standings = amStandings();
+    html += '<div class="card" style="margin-bottom:16px;background:#f0faf4;border-color:#a9dfbf;">';
+    html += '<div style="font-size:11px;font-weight:600;color:#1e8449;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Stilling</div>';
+    for(var si=0;si<standings.length;si++){
+      var sp=standings[si];var ac2=acolor(sp.id);
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.06);">';
+      html += '<div style="font-size:14px;font-weight:700;color:#888;width:20px;text-align:center;">'+(si+1)+'</div>';
+      html += '<div class="avatar" style="width:28px;height:28px;font-size:10px;color:'+ac2.color+';background:'+ac2.bg+';border-color:'+ac2.border+';">'+initials(sp.name)+'</div>';
+      html += '<div style="flex:1;font-size:14px;font-weight:600;color:#111;">'+esc(sp.name)+'</div>';
+      html += '<div style="font-size:16px;font-weight:700;color:#1e8449;">'+sp.points+'</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // Current round score entry
+    var rnd=am.currentRound;
+    if(rnd<am.rounds.length){
+      var round=am.rounds[rnd];
+      html += '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;letter-spacing:2px;color:#111;margin-bottom:12px;">Runde '+(rnd+1)+'</div>';
+      for(var mi=0;mi<round.matches.length;mi++){
+        var m=round.matches[mi];
+        var n1=amPlayerName(m.t1[0]),n2=amPlayerName(m.t1[1]),n3=amPlayerName(m.t2[0]),n4=amPlayerName(m.t2[1]);
+        html += '<div class="card" style="margin-bottom:12px;">';
+        html += '<div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Bane '+(mi+1)+'</div>';
+        html += '<div style="display:flex;align-items:center;gap:8px;">';
+        html += '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+esc(n1)+' / '+esc(n2)+'</div></div>';
+        html += '<input type="number" min="0" max="'+am.pointsPerGame+'" value="'+(m.score1||0)+'" onchange="amSetScore('+rnd+','+mi+',1,this.value)" style="width:52px;text-align:center;font-size:18px;font-weight:700;border:1.5px solid #ddd;border-radius:8px;padding:6px;font-family:DM Sans,sans-serif;">';
+        html += '<div style="font-family:Bebas Neue,sans-serif;font-size:18px;color:#ccc;">–</div>';
+        html += '<input type="number" min="0" max="'+am.pointsPerGame+'" value="'+(m.score2||0)+'" onchange="amSetScore('+rnd+','+mi+',2,this.value)" style="width:52px;text-align:center;font-size:18px;font-weight:700;border:1.5px solid #ddd;border-radius:8px;padding:6px;font-family:DM Sans,sans-serif;">';
+        html += '<div style="flex:1;text-align:right;"><div style="font-size:13px;font-weight:600;">'+esc(n3)+' / '+esc(n4)+'</div></div>';
+        html += '</div></div>';
+      }
+      html += '<div style="display:flex;gap:8px;margin-top:4px;">';
+      html += '<button class="btn btn-dark" onclick="amNextRound()">Næste runde</button>';
+      html += '<button class="btn btn-red" onclick="amStop()">Afslut turnering</button>';
+      html += '</div>';
+    } else {
+      html += '<div style="font-size:14px;color:#1e8449;font-weight:600;margin-bottom:16px;">Turneringen er afsluttet!</div>';
+      html += '<div style="display:flex;gap:8px;">';
+      html += '<button class="btn btn-green" onclick="amSaveToHistory()">Gem i historik</button>';
+      html += '<button class="btn btn-light" onclick="amReset()">Ny turnering</button>';
+      html += '</div>';
+    }
+  }
+  return html;
+}
+
+window.amTogglePlayer=function(id){
+  if(!STATE.americano)STATE.americano={active:false,players:[],rounds:[],pointsPerGame:32,currentRound:0};
+  var idx=STATE.americano.players.indexOf(id);
+  if(idx>-1)STATE.americano.players.splice(idx,1);
+  else STATE.americano.players.push(id);
+  render();
+};
+
+function amPlayerName(id){
+  var p=STATE.players.filter(function(x){return x.id===id;})[0];
+  return p?p.name:'Ukendt';
+}
+
+function amStandings(){
+  if(!STATE.americano)return[];
+  var pts={};
+  STATE.americano.players.forEach(function(id){pts[id]=0;});
+  STATE.americano.rounds.forEach(function(rnd){
+    rnd.matches.forEach(function(m){
+      var s1=parseInt(m.score1)||0,s2=parseInt(m.score2)||0;
+      m.t1.forEach(function(id){pts[id]=(pts[id]||0)+s1;});
+      m.t2.forEach(function(id){pts[id]=(pts[id]||0)+s2;});
+    });
+  });
+  return STATE.americano.players.map(function(id){
+    return{id:id,name:amPlayerName(id),points:pts[id]||0};
+  }).sort(function(a,b){return b.points-a.points;});
+}
+
+function amGenRound(){
+  var standings=amStandings();
+  var n=standings.length;
+  var courts=n/4;
+  var matches=[];
+  var paired=[];
+  // pair by standings: 1+2 vs 3+4, 5+6 vs 7+8, etc. per court
+  // rotate: top half vs bottom half to avoid same partners
+  var rndIdx=STATE.americano.rounds.length;
+  // Use rotation: for round r, shift partners
+  var order=standings.map(function(s){return s.id;});
+  for(var c=0;c<courts;c++){
+    var base=c*4;
+    // Rotate partner selection by round number
+    var t1,t2;
+    if(rndIdx%2===0){
+      t1=[order[base],order[base+3]];
+      t2=[order[base+1],order[base+2]];
+    } else {
+      t1=[order[base],order[base+1]];
+      t2=[order[base+2],order[base+3]];
+    }
+    matches.push({t1:t1,t2:t2,score1:0,score2:0});
+  }
+  return{matches:matches};
+}
+
+window.amStart=function(){
+  STATE.americano.rounds=[amGenRound()];
+  STATE.americano.currentRound=0;
+  STATE.americano.active=true;
+  render();
+};
+
+window.amSetScore=function(rnd,mi,team,val){
+  var m=STATE.americano.rounds[rnd].matches[mi];
+  var v=parseInt(val)||0;
+  var ppg=STATE.americano.pointsPerGame;
+  if(team===1){m.score1=Math.min(v,ppg);m.score2=Math.min(ppg-m.score1,ppg);}
+  else{m.score2=Math.min(v,ppg);m.score1=Math.min(ppg-m.score2,ppg);}
+};
+
+window.amNextRound=function(){
+  STATE.americano.currentRound++;
+  if(STATE.americano.currentRound>=STATE.americano.rounds.length){
+    STATE.americano.rounds.push(amGenRound());
+  }
+  render();
+};
+
+window.amStop=function(){
+  STATE.americano.currentRound=STATE.americano.rounds.length;
+  render();
+};
+
+window.amReset=function(){
+  STATE.americano={active:false,players:[],rounds:[],pointsPerGame:32,currentRound:0};
+  render();
+};
+
+window.amSaveToHistory=function(){
+  var standings=amStandings();
+  var lines=standings.map(function(s,i){return (i+1)+'. '+s.name+': '+s.points+' point';});
+  var totalRounds=STATE.americano.rounds.length;
+  var ppg=STATE.americano.pointsPerGame;
+  var title='Americano ('+totalRounds+' runder, '+ppg+' point/kamp)';
+  var notes='Resultat:\n'+lines.join('\n');
+  var playerIds=STATE.americano.players;
+  var defaultTeamId=STATE.teams&&STATE.teams.length?STATE.teams[0].id:null;
+  sbPost('sessions',{
+    title:title,
+    notes:notes,
+    team_id:defaultTeamId,
+    profile_id:STATE.profile.id,
+    player_ids:playerIds,
+    date:new Date().toISOString().slice(0,10)
+  }).then(function(){
+    alert('Americano-turnering gemt i historik!');
+    amReset();
+  });
+};
+
 // ── MATCHES ──────────────────────────────────────────────────
 function rMatches() {
+  if(STATE.matchSubTab==='americano') return rAmericano();
+
   var modeLabels={balanced:'Balancerede hold',split:'Niveau-opdelt',random:'Tilfældig'};
   var modeDesc={balanced:'Stærk + svag på hvert hold',split:'Bedste halvdel mod hinanden, resten mod hinanden',random:'Niveau spiller ingen rolle'};
   var modes=['balanced','split','random'];
 
   var html='<div class="sec-head"><div class="sec-title">Kampopsætning</div></div>';
+  // Sub-tab switcher
+  html += '<div style="display:flex;gap:0;margin-bottom:18px;border:1.5px solid #e5e5e5;border-radius:10px;overflow:hidden;">';
+  html += '<div style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#111;color:#fff;">Kampopsætning</div>';
+  html += '<div onclick="STATE.matchSubTab=\'americano\';render()" style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:#555;">Americano</div>';
+  html += '</div>';
 
   // Mode selector
   html+='<div class="card" style="margin-bottom:16px;">';
