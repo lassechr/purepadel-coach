@@ -1955,11 +1955,32 @@ function localDTNextHour(hoursAhead){
 
 
 function makeDatePicker(id, val) {
-  var extraOnchange=(id==='evDateOnly')?'autoFillEndDate();':'';
-  return '<input type="date" class="finput" id="'+id+'" value="'+(val||'')+'" onchange="'+extraOnchange+'" style="margin-bottom:0;">';
+  var y='', mo='', d='';
+  if(val){var p=val.split('-');y=p[0]||'';mo=p[1]||'';d=p[2]||'';}
+  var days='<option value="">Dag</option>';
+  for(var i=1;i<=31;i++){var dv=(i<10?'0':'')+i;days+='<option value="'+dv+'"'+(d===dv?' selected':'')+'>'+i+'</option>';}
+  var months='<option value="">Måned</option>';
+  var mnames=['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'];
+  for(var i=0;i<12;i++){var mv=(i<9?'0':'')+(i+1);months+='<option value="'+mv+'"'+(mo===mv?' selected':'')+'>'+mnames[i]+'</option>';}
+  var years='<option value="">År</option>';
+  var curY=new Date().getFullYear();
+  for(var i=curY;i<=curY+3;i++){years+='<option value="'+i+'"'+(y===String(i)?' selected':'')+'>'+i+'</option>';}
+  var fn='syncDatePicker(\''+id+'\')';
+  var sel='width:100%;padding:10px 8px;background:#fff;border:1.5px solid #ddd;border-radius:8px;color:#111;font-family:DM Sans,sans-serif;font-size:15px;outline:none;-webkit-appearance:none;appearance:none;';
+  return '<div style="display:flex;gap:6px;margin-bottom:0;">'
+    +'<select id="'+id+'_d" style="flex:0.7;'+sel+'" onchange="'+fn+'">'+days+'</select>'
+    +'<select id="'+id+'_m" style="flex:1.4;'+sel+'" onchange="'+fn+'">'+months+'</select>'
+    +'<select id="'+id+'_y" style="flex:0.9;'+sel+'" onchange="'+fn+'">'+years+'</select>'
+    +'<input type="hidden" id="'+id+'">'
+    +'</div>';
 }
 
 function syncDatePicker(id) {
+  var d=(document.getElementById(id+'_d')||{}).value||'';
+  var m=(document.getElementById(id+'_m')||{}).value||'';
+  var y=(document.getElementById(id+'_y')||{}).value||'';
+  var hidden=document.getElementById(id);
+  if(hidden)hidden.value=(y&&m&&d)?(y+'-'+m+'-'+d):'';
   if(id==='evDateOnly')autoFillEndDate();
 }
 
