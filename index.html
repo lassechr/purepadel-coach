@@ -1336,21 +1336,35 @@ window.amSaveToHistory=function(){
   var lines=standings.map(function(s,i){return (i+1)+'. '+s.name+': '+s.points+' point';});
   var totalRounds=STATE.americano.rounds.length;
   var ppg=STATE.americano.pointsPerGame;
-  var title='Americano ('+totalRounds+' runder, '+ppg+' point/kamp)';
-  var notes='Resultat:\n'+lines.join('\n');
-  var playerIds=STATE.americano.players;
-  var defaultTeamId=STATE.teams&&STATE.teams.length?STATE.teams[0].id:null;
-  sbPost('sessions',{
-    title:title,
-    notes:notes,
-    team_id:defaultTeamId,
-    profile_id:STATE.profile.id,
-    player_ids:playerIds,
-    date:new Date().toISOString().slice(0,10)
-  }).then(function(){
-    alert('Americano-turnering gemt i historik!');
-    amReset();
+  var name='Americano ('+totalRounds+' runder, '+ppg+' point/kamp)';
+  var matchesData=[];
+  STATE.americano.rounds.forEach(function(r,ri){
+    r.matches.forEach(function(m){
+      matchesData.push({
+        round:ri+1,
+        t1:m.t1,t2:m.t2,
+        score1:m.score1||0,score2:m.score2||0,
+        p1name:amPlayerName(m.t1[0]),p2name:amPlayerName(m.t1[1]),
+        p3name:amPlayerName(m.t2[0]),p4name:amPlayerName(m.t2[1])
+      });
+    });
   });
+  var data={
+    club_id:clubId(),
+    name:name,
+    date:new Date().toISOString().split('T')[0],
+    player_ids:STATE.americano.players,
+    matches:matchesData,
+    rounds:totalRounds
+  };
+  sbPost('sessions',data).then(function(result){
+    if(result&&!result.error&&!result.code){
+      loadSessions().then(function(){render();alert('Americano-turnering gemt i historik!');});
+      amReset();
+    } else {
+      alert('Fejl ved gemning: '+(result&&(result.message||result.error||result.code)||JSON.stringify(result)));
+    }
+  }).catch(function(err){alert('Netværksfejl: '+err.message);});
 };
 
 // ── MATCHES ──────────────────────────────────────────────────
