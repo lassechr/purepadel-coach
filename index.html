@@ -3108,7 +3108,7 @@ window.deleteEvent=function(id){
     var d=new Date(ev.date);
     var ds=d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
     var cancelTitle='Aflyst: '+ev.title;
-    var cancelBody=ev.title+' d. '+ds+' er desværre aflyst.';
+    var cancelBody=ev.title+' '+ds+' er desværre aflyst.';
     var cancelHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2 style="color:#c0392b;">Aflyst: '+ev.title+'</h2><p>'+cancelBody+'</p><p style="color:#888;font-size:12px;">PurePadel</p></div>';
     for(var i=0;i<invited.length;i++){
       notifyPlayer(invited[i].player_id,cancelTitle,cancelBody,cancelTitle,cancelHtml,null);
