@@ -3064,18 +3064,33 @@ window.saveEvent=function(){
       var selectedIds=[];
       for(var i=0;i<cbs.length;i++){if(cbs[i].checked)selectedIds.push(cbs[i].value);}
       closeModal();
-      // Send invitations
+      // Create event_responses and send invitations
       if(selectedIds.length){
         var evDate=new Date(data.date);
         var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
-        var matchTitle='Udtaget til kamp: '+data.title;
-        var matchBody='Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.';
-        var emailHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>Du er udtaget!</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Bekr\u00e6ft deltagelse</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
-        for(var si=0;si<selectedIds.length;si++){
-          notifyPlayer(selectedIds[si],matchTitle,matchBody,matchTitle,emailHtml);
-        }
+        var isMatchType=data.type==='match';
+        var invTitle=isMatchType?'Udtaget til kamp: '+data.title:'Invitation til tr\u00e6ning: '+data.title;
+        var invBody=isMatchType
+          ?'Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.'
+          :'Du er inviteret til tr\u00e6ning d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Tilmeld dig i appen.';
+        var invHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>'+invTitle+'</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Se begivenhed</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
+        var evId2=Array.isArray(res)&&res[0]?res[0].id:null;
+        var getEvId2=evId2?Promise.resolve(evId2):sbGet('events','team_id=eq.'+data.team_id+'&order=created_at.desc&limit=1').then(function(r2){return Array.isArray(r2)&&r2[0]?r2[0].id:null;});
+        getEvId2.then(function(eid){
+          if(!eid)return;
+          var responseTasks=selectedIds.map(function(pid){
+            return sbPost('event_responses',{event_id:eid,player_id:pid,response:null});
+          });
+          Promise.all(responseTasks).then(function(){
+            loadEvents().then(function(){return loadEventResponses();}).then(render);
+            for(var si=0;si<selectedIds.length;si++){
+              notifyPlayer(selectedIds[si],invTitle,invBody,invTitle,invHtml,eid);
+            }
+          });
+        });
+      } else {
+        loadEvents().then(function(){return loadEventResponses();}).then(render);
       }
-      loadEvents().then(function(){return loadEventResponses();}).then(render);
     });
   }
 };
