@@ -1971,7 +1971,7 @@ function makeDatePicker(id, val) {
     +'<select id="'+id+'_d" style="flex:0.7;'+sel+'" onchange="'+fn+'">'+days+'</select>'
     +'<select id="'+id+'_m" style="flex:1.4;'+sel+'" onchange="'+fn+'">'+months+'</select>'
     +'<select id="'+id+'_y" style="flex:0.9;'+sel+'" onchange="'+fn+'">'+years+'</select>'
-    +'<input type="hidden" id="'+id+'">'
+    +'<input type="hidden" id="'+id+'" value="'+(val||'')+'">'
     +'</div>';
 }
 
