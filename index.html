@@ -1995,11 +1995,12 @@ function makeTimePicker(id, val) {
   });
   var fn='syncTimePicker(\''+id+'\')';
   var tsel='padding:6px 4px;background:#fff;border:1.5px solid #ddd;border-radius:8px;color:#111;font-family:DM Sans,sans-serif;font-size:13px;outline:none;-webkit-appearance:none;appearance:none;text-align:center;';
+  var preVal=(hh&&mm)?(hh+':'+mm):'';
   return '<div style="display:flex;gap:4px;align-items:center;width:110px;">'
     +'<select id="'+id+'_h" style="flex:1;'+tsel+'" onchange="'+fn+'">'+hours+'</select>'
     +'<span style="font-size:14px;color:#888;flex-shrink:0;">:</span>'
     +'<select id="'+id+'_m" style="flex:1;'+tsel+'" onchange="'+fn+'">'+mins+'</select>'
-    +'<input type="hidden" id="'+id+'">'
+    +'<input type="hidden" id="'+id+'" value="'+preVal+'">'
     +'</div>';
 }
 
@@ -2338,7 +2339,7 @@ function rEventRow(ev,team,isPast){
   html+='<div style="font-size:12px;color:#888;margin-top:3px;">'+dateStr+' &bull; '+timeDisplay;
   if(ev.location)html+=' &bull; '+esc(ev.location);
   html+='</div>';
-  if(deadline){html+='<div style="font-size:11px;color:'+(deadlinePast?'#c0392b':'#b7770d')+';margin-top:2px;">Frist: '+deadline.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+'</div>';}
+  if(deadline){html+='<div style="font-size:11px;color:'+(deadlinePast?'#c0392b':'#b7770d')+';margin-top:2px;">Frist: '+deadline.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+' kl. '+deadline.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})+'</div>';}
   html+='</div>';
   html+='<div style="display:flex;gap:8px;align-items:center;flex-shrink:0;margin-left:10px;">';
   html+='<span style="font-size:13px;color:#1e8449;font-weight:700;">'+yesCount+'</span>';
@@ -3069,10 +3070,11 @@ window.saveEvent=function(){
         var evDate=new Date(data.date);
         var dateStr=evDate.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
         var isMatchType=data.type==='match';
+        var timeStr=evDate.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
         var invTitle=isMatchType?'Udtaget til kamp: '+data.title:'Invitation til tr\u00e6ning: '+data.title;
         var invBody=isMatchType
-          ?'Du er udtaget til kampen d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.'
-          :'Du er inviteret til tr\u00e6ning d. '+dateStr+(data.location?' p\u00e5 '+data.location:'')+'. Tilmeld dig i appen.';
+          ?'Du er udtaget til kampen d. '+dateStr+' kl. '+timeStr+(data.location?' p\u00e5 '+data.location:'')+'. Bekr\u00e6ft din deltagelse i appen.'
+          :'Du er inviteret til tr\u00e6ning d. '+dateStr+' kl. '+timeStr+(data.location?' p\u00e5 '+data.location:'')+'. Tilmeld dig i appen.';
         var invHtml='<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px;"><h2>'+invTitle+'</h2><div style="background:#e8f0fb;border:1px solid #b3cef0;border-radius:8px;padding:16px;margin:16px 0;"><strong>'+data.title+'</strong><br>'+dateStr+(data.location?'<br>'+data.location:'')+'</div><a href="https://coach.purepadel.dk" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Se begivenhed</a><p style="color:#888;font-size:12px;margin-top:20px;">PurePadel</p></div>';
         var evId2=Array.isArray(res)&&res[0]?res[0].id:null;
         var getEvId2=evId2?Promise.resolve(evId2):sbGet('events','team_id=eq.'+data.team_id+'&order=created_at.desc&limit=1').then(function(r2){return Array.isArray(r2)&&r2[0]?r2[0].id:null;});
