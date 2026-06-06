@@ -2358,7 +2358,8 @@ function rEventDetail(ev,responses){
   var yes=responses.filter(function(r){return r.response==='yes';});
   var no=responses.filter(function(r){return r.response==='no';});
   var pending=responses.filter(function(r){return r.response===null;});
-  var isTrainerRole=STATE.profile&&(STATE.profile.role==='trainer'||STATE.profile.role==='club_admin'||STATE.profile.role==='superadmin');
+  var isTrainerRole=STATE.profile&&STATE.profile.role==='trainer';
+  var canManageEvent=STATE.profile&&(STATE.profile.role==='trainer'||STATE.profile.role==='club_admin'||STATE.profile.role==='superadmin');
   var html='<div style="background:#f9f9f9;padding:14px 16px;border-top:1px solid #eee;">';
 
   // Trainer own response
@@ -2411,9 +2412,11 @@ function rEventDetail(ev,responses){
 
   // Actions
   html+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">';
+  if(canManageEvent){
   html+='<button class="btn btn-dark btn-sm" onclick="sendReminder(\''+ev.id+'\')">Send p&#229;mindelse</button>';
   html+='<button class="btn btn-light btn-sm" onclick="showExtraInvite(\''+ev.id+'\')">Invit&#233;r spiller</button>';
-  html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Slet begivenhed</button>';
+  }
+  if(canManageEvent)html+='<button class="btn btn-red btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Slet begivenhed</button>';
   html+='</div>';
 
   // Extra invite panel \u2014 all uninvited team members
