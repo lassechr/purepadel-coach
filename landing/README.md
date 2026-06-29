@@ -31,6 +31,21 @@ Find `const PRODUCTS = [...]` og tilføj et nyt objekt:
 ```
 Læg billedet i `produkter/`-mappen med samme filnavn.
 
+### Flere billeder pr. produkt (galleri)
+Brug `images: [...]` i stedet for `image:`. Det første billede vises på forsiden,
+resten kan klikkes frem som miniaturer inde på produktet:
+```js
+{
+  id:     "padelbat-pro",
+  name:   "Padelbat Pro",
+  price:  "1.199 kr.",
+  images: ["produkter/bat-1.webp", "produkter/bat-2.webp", "produkter/bat-3.webp"],
+  text:   "Beskrivelse...",
+  badge:  ""
+}
+```
+Vigtigt: sti + filnavn skal matche filen 100% (også store/små bogstaver).
+
 ## Del-link til ét produkt
 `https://www.purepadel.dk/?p=kort-unikt-id` åbner kun det produkt.
 Knappen **Del** på hvert produkt kopierer linket automatisk.

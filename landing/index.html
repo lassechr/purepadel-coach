@@ -37,28 +37,36 @@ const CONFIG = {
 
 /* ---------- 2) DINE PRODUKTER ----------
    Tilføj/fjern produkter i listen. Hvert produkt har:
-     id    : kort unikt navn UDEN mellemrum (bruges i delelinket ?p=...)
-     name  : produktets titel
-     price : pris som tekst, fx "899 kr."
-     image : sti til billede (læg billedet i samme mappe) ELLER en fuld URL
-     text  : beskrivelse
-     badge : (valgfrit) lille mærkat, fx "Tilbud" eller "Udsolgt" — eller ""
+     id     : kort unikt navn UDEN mellemrum (bruges i delelinket ?p=...)
+     name   : produktets titel
+     price  : pris som tekst, fx "899 kr."
+     text   : beskrivelse
+     badge  : (valgfrit) lille mærkat, fx "Tilbud" eller "Udsolgt" — eller ""
+
+   BILLEDER — vælg én af de to måder:
+     images : FLERE billeder i en liste (galleri). Det FØRSTE vises på forsiden,
+              resten kan klikkes frem inde på produktet. Eksempel:
+                images: ["produkter/bat-1.webp", "produkter/bat-2.webp", "produkter/bat-3.webp"],
+     image  : ÉT billede (kortere skrivemåde). Eksempel:
+                image: "produkter/bat.webp",
+     (Husk: sti + filnavn skal matche filen 100% — også store/små bogstaver.)
+
    Vil du IKKE bruge produkter endnu? Sæt listen til:  const PRODUCTS = [];     */
 const PRODUCTS = [
   {
-    id:    "padelbat-pro",
-    name:  "Eksempel: Padelbat Pro",
-    price: "1.199 kr.",
-    image: "produkter/padelbat-pro.jpg",
-    text:  "Skriv en kort, sælgende beskrivelse af produktet her. Materiale, vægt, hvem det passer til osv.",
-    badge: ""
+    id:     "padelbat-pro",
+    name:   "Eksempel: Padelbat Pro",
+    price:  "1.199 kr.",
+    images: ["produkter/padelbat-pro-1.jpg", "produkter/padelbat-pro-2.jpg", "produkter/padelbat-pro-3.jpg"],
+    text:   "Eksempel med FLERE billeder. Skriv en kort, sælgende beskrivelse her. Materiale, vægt, hvem det passer til osv.",
+    badge:  ""
   },
   {
     id:    "padel-taske",
     name:  "Eksempel: Padeltaske",
     price: "499 kr.",
     image: "produkter/padel-taske.jpg",
-    text:  "Rummelig taske med plads til flere bat, sko og tøj. Slidstærk og vandafvisende.",
+    text:  "Eksempel med ÉT billede. Rummelig taske med plads til flere bat, sko og tøj.",
     badge: "Tilbud"
   },
   {
@@ -171,6 +179,12 @@ a{color:inherit}
 .single .imgcol{flex:1 1 320px}
 .single .imgcol .imgwrap{aspect-ratio:1/1;border-radius:18px;overflow:hidden;background:#eef0f4;position:relative;border:1px solid var(--line)}
 .single .imgcol img{width:100%;height:100%;object-fit:cover}
+.single .imgcol img{width:100%;height:100%;object-fit:cover}
+.thumbs{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.thumb{width:66px;height:66px;border-radius:10px;overflow:hidden;border:2px solid var(--line);background:#eef0f4;padding:0;cursor:pointer;flex:none}
+.thumb.active{border-color:var(--green)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.imgcount{position:absolute;bottom:10px;right:10px;background:rgba(20,22,27,.78);color:#fff;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;pointer-events:none}
 .single .info{flex:1 1 320px}
 .single .info h2{text-align:left;font-size:28px;margin:0 0 8px}
 .single .info .price{font-size:26px;font-weight:800;color:var(--green);margin:0 0 14px}
@@ -249,14 +263,29 @@ function shareProduct(id){
 window.shareProduct=shareProduct;
 
 /* ---------------- byggeklodser ---------------- */
-function imgOrPlaceholder(p){
-  if(p.image){
-    return '<img src="'+attr(p.image)+'" alt="'+attr(p.name)+'" loading="lazy" '
+/* Returnerer altid en liste af billeder (understøtter både images:[...] og image:"...") */
+function productImages(p){
+  if(Array.isArray(p.images)) return p.images.filter(Boolean);
+  if(p.image) return [p.image];
+  return [];
+}
+function imgOrPlaceholder(src, alt){
+  if(src){
+    return '<img src="'+attr(src)+'" alt="'+attr(alt||"")+'" loading="lazy" '
       + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
-      + '<div class="ph" style="display:none">Billede mangler<br>('+attr(p.image)+')</div>';
+      + '<div class="ph" style="display:none">Billede mangler<br>('+attr(src)+')</div>';
   }
   return '<div class="ph" style="display:flex">Tilføj et billede</div>';
 }
+/* Skift hovedbillede inde i galleriet */
+function swapImg(btn, src){
+  var main=document.getElementById("mainimg");
+  if(main){ main.style.display="block"; main.src=src; }
+  var thumbs=btn.parentNode.querySelectorAll(".thumb");
+  for(var i=0;i<thumbs.length;i++) thumbs[i].classList.remove("active");
+  btn.classList.add("active");
+}
+window.swapImg=swapImg;
 
 function heroHTML(){
   var s="";
@@ -276,11 +305,13 @@ function heroHTML(){
 }
 
 function cardHTML(p){
+  var imgs=productImages(p);
   var s="";
   s+='<div class="card">';
   s+=  '<a class="imgwrap" href="?p='+encodeURIComponent(p.id)+'" style="text-decoration:none">';
   if(p.badge) s+='<span class="badge">'+esc(p.badge)+'</span>';
-  s+=    imgOrPlaceholder(p);
+  s+=    imgOrPlaceholder(imgs[0], p.name);
+  if(imgs.length>1) s+='<span class="imgcount">📷 '+imgs.length+'</span>';
   s+=  '</a>';
   s+=  '<div class="body">';
   s+=    '<h3>'+esc(p.name)+'</h3>';
@@ -315,11 +346,28 @@ function singleHTML(p){
   s+='</div>';
   s+='<div class="section"><div class="wrap">';
   s+='<a class="back" href="?">&larr; Alle produkter</a>';
+  var imgs=productImages(p);
   s+='<div class="single">';
-  s+=  '<div class="imgcol"><div class="imgwrap">';
+  s+=  '<div class="imgcol">';
+  s+=    '<div class="imgwrap">';
   if(p.badge) s+='<span class="badge">'+esc(p.badge)+'</span>';
-  s+=    imgOrPlaceholder(p);
-  s+=  '</div></div>';
+  if(imgs.length){
+    s+='<img id="mainimg" src="'+attr(imgs[0])+'" alt="'+attr(p.name)+'" '
+      + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+      + '<div class="ph" style="display:none">Billede mangler<br>('+attr(imgs[0])+')</div>';
+  }else{
+    s+='<div class="ph" style="display:flex">Tilføj et billede</div>';
+  }
+  s+=    '</div>';
+  if(imgs.length>1){
+    s+='<div class="thumbs">';
+    for(var i=0;i<imgs.length;i++){
+      s+='<button class="thumb'+(i===0?' active':'')+'" onclick="swapImg(this,\''+attr(imgs[i])+'\')">'
+        + '<img src="'+attr(imgs[i])+'" alt="" onerror="this.parentNode.style.display=\'none\'"></button>';
+    }
+    s+='</div>';
+  }
+  s+=  '</div>';
   s+=  '<div class="info">';
   s+=    '<h2>'+esc(p.name)+'</h2>';
   if(p.price) s+='<div class="price">'+esc(p.price)+'</div>';
