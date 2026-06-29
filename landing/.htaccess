@@ -1,6 +1,10 @@
 # PurePadel landingpage — Apache konfiguration (webhotel)
 # Upload denne fil til roden af purepadel.dk sammen med de øvrige filer.
 
+# ── Forsiden ──────────────────────────────────────────────────
+# Vis index.html som forside (også selvom der ligger en index.php i roden)
+DirectoryIndex index.html index.php
+
 # ── Cache-Control ─────────────────────────────────────────────
 # index.html må ikke caches — så ændringer (produkter/priser) slår igennem med det samme
 <FilesMatch "^index\.html$">
