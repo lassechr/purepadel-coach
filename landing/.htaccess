@@ -1,0 +1,34 @@
+# PurePadel landingpage — Apache konfiguration (webhotel)
+# Upload denne fil til roden af purepadel.dk sammen med de øvrige filer.
+
+# ── Cache-Control ─────────────────────────────────────────────
+# index.html må ikke caches — så ændringer (produkter/priser) slår igennem med det samme
+<FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>
+
+# Billeder og logo kan caches kortvarigt
+<FilesMatch "\.(png|jpe?g|webp|gif|svg|ico)$">
+    Header set Cache-Control "public, max-age=86400"
+</FilesMatch>
+
+# ── Sikkerhedsheaders ─────────────────────────────────────────
+Header set X-Content-Type-Options "nosniff"
+Header set X-Frame-Options "SAMEORIGIN"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+# ── Komprimering (hvis mod_deflate er aktiveret) ──────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml
+</IfModule>
+
+# ── Send ukendte stier til index.html (rigtige filer serveres direkte) ──
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.html [L,QSA]
+</IfModule>
