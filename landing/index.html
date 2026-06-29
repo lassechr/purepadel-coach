@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PurePadel — Padeludstyr</title>
+<meta name="description" content="PurePadel — padeludstyr til alle. Se vores produkter og kontakt os.">
+
+<!-- Open Graph (pænt preview når links deles på Facebook/Instagram/SMS) -->
+<meta property="og:title" content="PurePadel">
+<meta property="og:description" content="Padeludstyr til alle. Se vores produkter.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="logo.png">
+
+<link rel="icon" href="logo.png">
+
+<!-- ===================================================================== -->
+<!--  ⚙️  TILRET ALT HERUNDER — det er det eneste du behøver at røre        -->
+<!-- ===================================================================== -->
+<script>
+/* ---------- 1) DINE OPLYSNINGER ----------
+   Lad et felt stå tomt ("") for at skjule knappen.                        */
+const CONFIG = {
+  brand:    "PurePadel",
+  tagline:  "Padeludstyr til alle",
+  // Kort besked i toppen (webshoppen er lukket):
+  intro:    "Vores webshop holder pause — men du kan stadig se vores produkter herunder og kontakte os direkte for køb og spørgsmål.",
+
+  // Kontakt (skriv "" hvis du ikke vil vise et felt)
+  email:    "kontakt@purepadel.dk",
+  phone:    "",                          // fx "+45 12 34 56 78"
+
+  // Sociale links (indsæt de fulde URL'er — tomme skjules)
+  facebook:  "",                         // fx "https://www.facebook.com/dinside"
+  instagram: "",                         // fx "https://www.instagram.com/purepadel/"
+};
+
+/* ---------- 2) DINE PRODUKTER ----------
+   Tilføj/fjern produkter i listen. Hvert produkt har:
+     id    : kort unikt navn UDEN mellemrum (bruges i delelinket ?p=...)
+     name  : produktets titel
+     price : pris som tekst, fx "899 kr."
+     image : sti til billede (læg billedet i samme mappe) ELLER en fuld URL
+     text  : beskrivelse
+     badge : (valgfrit) lille mærkat, fx "Tilbud" eller "Udsolgt" — eller ""
+   Vil du IKKE bruge produkter endnu? Sæt listen til:  const PRODUCTS = [];     */
+const PRODUCTS = [
+  {
+    id:    "padelbat-pro",
+    name:  "Eksempel: Padelbat Pro",
+    price: "1.199 kr.",
+    image: "produkter/padelbat-pro.jpg",
+    text:  "Skriv en kort, sælgende beskrivelse af produktet her. Materiale, vægt, hvem det passer til osv.",
+    badge: ""
+  },
+  {
+    id:    "padel-taske",
+    name:  "Eksempel: Padeltaske",
+    price: "499 kr.",
+    image: "produkter/padel-taske.jpg",
+    text:  "Rummelig taske med plads til flere bat, sko og tøj. Slidstærk og vandafvisende.",
+    badge: "Tilbud"
+  },
+  {
+    id:    "purepadel-tshirt",
+    name:  "Eksempel: PurePadel T-shirt",
+    price: "249 kr.",
+    image: "produkter/tshirt.jpg",
+    text:  "“Padel with passion” på ryggen. Blød bomuld i åndbar kvalitet.",
+    badge: ""
+  }
+];
+</script>
+<!-- ===================================================================== -->
+<!--  Herunder behøver du ikke rette noget                                  -->
+<!-- ===================================================================== -->
+
+<style>
+:root{
+  --bg:#14161b;          /* mørk som logoet */
+  --bg2:#1b1e25;
+  --card:#ffffff;
+  --ink:#14161b;
+  --muted:#6b7280;
+  --line:#e7e9ee;
+  --green:#1e8449;       /* PurePadel-grøn (fra appen) */
+  --green-d:#176b3a;
+  --gold:#b7770d;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--ink);
+  background:#f4f5f7;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+
+/* ---------- HERO ---------- */
+.hero{
+  background:radial-gradient(120% 100% at 50% -20%,#23262f 0%,var(--bg) 60%);
+  color:#fff;
+  text-align:center;
+  padding:54px 20px 64px;
+}
+.hero .logo{
+  width:130px;height:130px;margin:0 auto 18px;
+  border-radius:24px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 10px 40px rgba(0,0,0,.45);
+  overflow:hidden;
+}
+.hero .logo img{width:100%;height:100%;object-fit:contain}
+.hero .wordmark{font-size:30px;font-weight:800;letter-spacing:.5px}
+.hero h1{font-size:clamp(28px,6vw,46px);font-weight:800;margin:6px 0 2px;letter-spacing:.3px}
+.hero .tag{color:#9aa3b2;font-size:17px;margin:0 0 18px}
+.hero .intro{max-width:560px;margin:0 auto;color:#c9cfda;font-size:16px}
+
+/* ---------- knapper / socials ---------- */
+.btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px}
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;
+  text-decoration:none;border:1px solid transparent;transition:.15s;cursor:pointer;
+}
+.btn svg{width:19px;height:19px;flex:none}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:var(--green-d)}
+.btn-ghost{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
+.btn-ghost:hover{background:rgba(255,255,255,.16)}
+
+/* ---------- sektioner ---------- */
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.section{padding:56px 0}
+.section h2{font-size:26px;font-weight:800;text-align:center;margin:0 0 6px}
+.section .sub{text-align:center;color:var(--muted);margin:0 0 34px}
+
+/* ---------- produkt-grid ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  display:flex;flex-direction:column;transition:.18s;
+}
+.card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(20,22,27,.12)}
+.card .imgwrap{position:relative;aspect-ratio:4/3;background:#eef0f4}
+.card .imgwrap img{width:100%;height:100%;object-fit:cover}
+.card .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aeb4bf;font-size:13px;text-align:center;padding:14px}
+.badge{
+  position:absolute;top:12px;left:12px;background:var(--gold);color:#fff;
+  font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;letter-spacing:.3px;
+}
+.card .body{padding:16px 16px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.card h3{margin:0;font-size:17px;font-weight:700}
+.card .price{font-size:18px;font-weight:800;color:var(--green)}
+.card .desc{font-size:14px;color:#4b5563;margin:0;flex:1}
+.card .actions{display:flex;gap:8px;margin-top:8px}
+.card .actions .btn{padding:9px 14px;font-size:13px}
+.btn-buy{background:var(--green);color:#fff;flex:1;justify-content:center}
+.btn-buy:hover{background:var(--green-d)}
+.btn-share{background:#f0f2f5;color:#374151;border-color:var(--line)}
+.btn-share:hover{background:#e6e9ee}
+
+.empty{text-align:center;color:var(--muted);padding:30px;border:2px dashed var(--line);border-radius:16px}
+
+/* ---------- enkelt-produkt visning (?p=id) ---------- */
+.single{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+.single .imgcol{flex:1 1 320px}
+.single .imgcol .imgwrap{aspect-ratio:1/1;border-radius:18px;overflow:hidden;background:#eef0f4;position:relative;border:1px solid var(--line)}
+.single .imgcol img{width:100%;height:100%;object-fit:cover}
+.single .info{flex:1 1 320px}
+.single .info h2{text-align:left;font-size:28px;margin:0 0 8px}
+.single .info .price{font-size:26px;font-weight:800;color:var(--green);margin:0 0 14px}
+.single .info .desc{font-size:16px;color:#374151;margin:0 0 24px;white-space:pre-line}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-size:14px;margin-bottom:22px}
+.back:hover{color:var(--ink)}
+
+/* ---------- kontakt ---------- */
+.contact{background:#fff;border-top:1px solid var(--line)}
+.contact .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;max-width:720px;margin:0 auto}
+.cline{display:flex;align-items:center;gap:13px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;text-decoration:none}
+.cline:hover{border-color:var(--green);background:#f7fdf9}
+.cline .ic{width:42px;height:42px;border-radius:11px;background:#eef6f0;display:flex;align-items:center;justify-content:center;flex:none}
+.cline .ic svg{width:21px;height:21px}
+.cline .lbl{font-size:12px;color:var(--muted)}
+.cline .val{font-weight:600}
+
+/* ---------- footer ---------- */
+footer{background:var(--bg);color:#8b93a3;text-align:center;padding:30px 20px;font-size:13px}
+footer .social{display:flex;gap:14px;justify-content:center;margin-bottom:14px}
+footer .social a{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:#fff}
+footer .social a:hover{background:var(--green)}
+footer .social svg{width:19px;height:19px}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:#14161b;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:520px){
+  .section{padding:42px 0}
+  .hero{padding:40px 18px 50px}
+}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<!-- SVG-ikoner (genbruges) -->
+<svg style="display:none">
+  <symbol id="i-fb" viewBox="0 0 24 24"><path fill="currentColor" d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z"/></symbol>
+  <symbol id="i-ig" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2Zm0 1.8c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.9 2.6 10.3 2.6 12s0 2.1.1 3.3c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-3.3s0-2.1-.1-3.3c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1Zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8Zm0 8.1a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm6.3-8.3a1.15 1.15 0 1 1-2.3 0 1.15 1.15 0 0 1 2.3 0Z"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v.5l8 5 8-5V6H4Zm16 2.8-7.5 4.7a1 1 0 0 1-1 0L4 8.8V18h16V8.8Z"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path fill="currentColor" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11 11 0 0 0 3.5.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11 11 0 0 0 .56 3.5 1 1 0 0 1-.24 1l-2.2 2.3Z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path fill="currentColor" d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.5a3 3 0 0 0 0-1.4l6.7-3.5a3 3 0 1 0-.7-1.9c0 .2 0 .4.1.6L8.3 11.5a3 3 0 1 0 0 5l6.7 3.5c0 .2-.1.4-.1.6a3 3 0 1 0 3-2.6Z"/></symbol>
+</svg>
+
+<script>
+/* ---------------- hjælpere ---------------- */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function attr(s){return esc(s).replace(/"/g,"&quot;");}
+function buyHref(p){
+  if(CONFIG.email) return "mailto:"+CONFIG.email+"?subject="+encodeURIComponent("Forespørgsel: "+p.name);
+  return "#kontakt";
+}
+function productLink(id){
+  return location.origin+location.pathname+"?p="+encodeURIComponent(id);
+}
+function toast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg;t.classList.add("show");
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2200);
+}
+function copy(text){
+  if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast("Link kopieret ✓"),()=>toast(text));}
+  else{toast(text);}
+}
+function shareProduct(id){
+  var p=PRODUCTS.find(x=>x.id===id); if(!p)return;
+  var url=productLink(id);
+  if(navigator.share){navigator.share({title:p.name,url:url}).catch(()=>{});}
+  else{copy(url);}
+}
+window.shareProduct=shareProduct;
+
+/* ---------------- byggeklodser ---------------- */
+function imgOrPlaceholder(p){
+  if(p.image){
+    return '<img src="'+attr(p.image)+'" alt="'+attr(p.name)+'" loading="lazy" '
+      + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+      + '<div class="ph" style="display:none">Billede mangler<br>('+attr(p.image)+')</div>';
+  }
+  return '<div class="ph" style="display:flex">Tilføj et billede</div>';
+}
+
+function heroHTML(){
+  var s="";
+  s+='<div class="hero" id="top">';
+  s+=  '<div class="logo"><img src="logo.png" alt="'+attr(CONFIG.brand)+'" '
+     + 'onerror="this.parentNode.style.display=\'none\'"></div>';
+  s+=  '<h1>'+esc(CONFIG.brand)+'</h1>';
+  if(CONFIG.tagline) s+='<p class="tag">'+esc(CONFIG.tagline)+'</p>';
+  if(CONFIG.intro)   s+='<p class="intro">'+esc(CONFIG.intro)+'</p>';
+  s+=  '<div class="btns">';
+  s+=    '<a class="btn btn-green" href="#produkter">Se produkter</a>';
+  if(CONFIG.facebook)  s+='<a class="btn btn-ghost" href="'+attr(CONFIG.facebook)+'" target="_blank" rel="noopener"><svg><use href="#i-fb"/></svg>Facebook</a>';
+  if(CONFIG.instagram) s+='<a class="btn btn-ghost" href="'+attr(CONFIG.instagram)+'" target="_blank" rel="noopener"><svg><use href="#i-ig"/></svg>Instagram</a>';
+  s+=  '</div>';
+  s+='</div>';
+  return s;
+}
+
+function cardHTML(p){
+  var s="";
+  s+='<div class="card">';
+  s+=  '<a class="imgwrap" href="?p='+encodeURIComponent(p.id)+'" style="text-decoration:none">';
+  if(p.badge) s+='<span class="badge">'+esc(p.badge)+'</span>';
+  s+=    imgOrPlaceholder(p);
+  s+=  '</a>';
+  s+=  '<div class="body">';
+  s+=    '<h3>'+esc(p.name)+'</h3>';
+  if(p.price) s+='<div class="price">'+esc(p.price)+'</div>';
+  s+=    '<p class="desc">'+esc(p.text)+'</p>';
+  s+=    '<div class="actions">';
+  s+=      '<a class="btn btn-buy" href="'+attr(buyHref(p))+'">Kontakt for køb</a>';
+  s+=      '<button class="btn btn-share" onclick="shareProduct(\''+attr(p.id)+'\')" title="Del produkt"><svg><use href="#i-share"/></svg></button>';
+  s+=    '</div>';
+  s+=  '</div>';
+  s+='</div>';
+  return s;
+}
+
+function productsHTML(){
+  var s='<div class="section" id="produkter"><div class="wrap">';
+  s+='<h2>Vores produkter</h2>';
+  s+='<p class="sub">Kontakt os for køb, pris og tilgængelighed.</p>';
+  if(!PRODUCTS.length){
+    s+='<div class="empty">Der er ikke lagt produkter op endnu.</div>';
+  }else{
+    s+='<div class="grid">'+PRODUCTS.map(cardHTML).join("")+'</div>';
+  }
+  s+='</div></div>';
+  return s;
+}
+
+function singleHTML(p){
+  var s='<div class="hero" id="top" style="padding-bottom:34px">';
+  s+=  '<a href="?" style="text-decoration:none"><div class="logo"><img src="logo.png" alt="'+attr(CONFIG.brand)+'" '
+     + 'onerror="this.parentNode.parentNode.outerHTML=\'<a href=&quot;?&quot; style=&quot;color:#fff;text-decoration:none&quot;><span class=\\\'wordmark\\\'>'+attr(CONFIG.brand)+'</span></a>\'"></div></a>';
+  s+='</div>';
+  s+='<div class="section"><div class="wrap">';
+  s+='<a class="back" href="?">&larr; Alle produkter</a>';
+  s+='<div class="single">';
+  s+=  '<div class="imgcol"><div class="imgwrap">';
+  if(p.badge) s+='<span class="badge">'+esc(p.badge)+'</span>';
+  s+=    imgOrPlaceholder(p);
+  s+=  '</div></div>';
+  s+=  '<div class="info">';
+  s+=    '<h2>'+esc(p.name)+'</h2>';
+  if(p.price) s+='<div class="price">'+esc(p.price)+'</div>';
+  s+=    '<p class="desc">'+esc(p.text)+'</p>';
+  s+=    '<div class="btns" style="justify-content:flex-start">';
+  s+=      '<a class="btn btn-green" href="'+attr(buyHref(p))+'"><svg><use href="#i-mail"/></svg>Kontakt for køb</a>';
+  s+=      '<button class="btn btn-share" style="border:1px solid var(--line)" onclick="shareProduct(\''+attr(p.id)+'\')"><svg><use href="#i-share"/></svg>Del</button>';
+  s+=    '</div>';
+  s+=  '</div>';
+  s+='</div>';
+  s+='</div></div>';
+  return s;
+}
+
+function contactHTML(){
+  var rows="";
+  if(CONFIG.email) rows+='<a class="cline" href="mailto:'+attr(CONFIG.email)+'"><span class="ic"><svg><use href="#i-mail"/></svg></span><span><span class="lbl">Email</span><br><span class="val">'+esc(CONFIG.email)+'</span></span></a>';
+  if(CONFIG.phone) rows+='<a class="cline" href="tel:'+attr(CONFIG.phone.replace(/\s/g,""))+'"><span class="ic"><svg><use href="#i-phone"/></svg></span><span><span class="lbl">Telefon</span><br><span class="val">'+esc(CONFIG.phone)+'</span></span></a>';
+  if(CONFIG.facebook) rows+='<a class="cline" href="'+attr(CONFIG.facebook)+'" target="_blank" rel="noopener"><span class="ic"><svg><use href="#i-fb"/></svg></span><span><span class="lbl">Følg os</span><br><span class="val">Facebook</span></span></a>';
+  if(CONFIG.instagram) rows+='<a class="cline" href="'+attr(CONFIG.instagram)+'" target="_blank" rel="noopener"><span class="ic"><svg><use href="#i-ig"/></svg></span><span><span class="lbl">Følg os</span><br><span class="val">Instagram</span></span></a>';
+  if(!rows) return "";
+  var s='<div class="section contact" id="kontakt"><div class="wrap">';
+  s+='<h2>Kontakt</h2><p class="sub">Skriv eller ring — vi svarer hurtigst muligt.</p>';
+  s+='<div class="cards">'+rows+'</div>';
+  s+='</div></div>';
+  return s;
+}
+
+function footerHTML(){
+  var soc="";
+  if(CONFIG.facebook)  soc+='<a href="'+attr(CONFIG.facebook)+'" target="_blank" rel="noopener" aria-label="Facebook"><svg><use href="#i-fb"/></svg></a>';
+  if(CONFIG.instagram) soc+='<a href="'+attr(CONFIG.instagram)+'" target="_blank" rel="noopener" aria-label="Instagram"><svg><use href="#i-ig"/></svg></a>';
+  var year=document.lastModified ? new Date(document.lastModified).getFullYear() : "";
+  var s='<footer>';
+  if(soc) s+='<div class="social">'+soc+'</div>';
+  s+='<div>&copy; '+(year||"")+' '+esc(CONFIG.brand)+'</div>';
+  s+='</footer>';
+  return s;
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  var params=new URLSearchParams(location.search);
+  var pid=params.get("p");
+  var app=document.getElementById("app");
+  if(pid){
+    var p=PRODUCTS.find(x=>x.id===pid);
+    if(p){
+      document.title=p.name+" — "+CONFIG.brand;
+      app.innerHTML=singleHTML(p)+contactHTML()+footerHTML();
+      window.scrollTo(0,0);
+      return;
+    }
+  }
+  app.innerHTML=heroHTML()+productsHTML()+contactHTML()+footerHTML();
+}
+render();
+window.addEventListener("popstate",render);
+</script>
+</body>
+</html>
